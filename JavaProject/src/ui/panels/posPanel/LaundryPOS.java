@@ -44,20 +44,52 @@ public class LaundryPOS extends JPanel {
         searchLabel.setFont(new Font("Arial", Font.BOLD, 16));
         searchLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         search.add(searchLabel);
-
-        JTextField searchField = new JTextField();
-        searchField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-        searchField.setAlignmentX(Component.LEFT_ALIGNMENT);
         search.add(Box.createVerticalStrut(10));
-        search.add(searchField);
-        panel.add(search);
 
+        // Search field row with icon
+        JPanel searchRow = new JPanel(new BorderLayout(8, 0));
+        searchRow.setBackground(Color.WHITE);
+        searchRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
+        searchRow.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(200, 200, 200), 1, true),
+            BorderFactory.createEmptyBorder(4, 8, 4, 8)
+        ));
+
+        JLabel iconLabel = new JLabel("\uD83D\uDD0D"); // 🔍 emoji
+        iconLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        iconLabel.setForeground(Color.GRAY);
+
+        JTextField searchField = new JTextField("Search services....");
+        searchField.setForeground(Color.GRAY);
+        searchField.setBorder(null);
+        searchField.setFont(new Font("Arial", Font.PLAIN, 13));
+        searchField.setBackground(Color.WHITE);
+
+        // Clear placeholder on focus
+        searchField.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent e) {
+                if (searchField.getText().equals("Search services....")) {
+                    searchField.setText("");
+                    searchField.setForeground(Color.BLACK);
+                }
+            }
+            public void focusLost(java.awt.event.FocusEvent e) {
+                if (searchField.getText().isEmpty()) {
+                    searchField.setText("Search services....");
+                    searchField.setForeground(Color.GRAY);
+                }
+            }
+        });
+
+        searchRow.add(iconLabel, BorderLayout.WEST);
+        searchRow.add(searchField, BorderLayout.CENTER);
+        search.add(searchRow);
+
+        panel.add(search);
         panel.add(Box.createVerticalStrut(25));
 
-        // Services
-        panel.add(createLabel("Services"));
-        panel.add(Box.createVerticalStrut(15));
-        panel.add(createGrid(new String[][] {
+        // Services section
+        panel.add(createSection("Services", new String[][] {
                 { "Wash Only", "Per 7 kilogram/Comforter", "70.00" },
                 { "Dry Only", "Per 7 kilogram/Comforter", "70.00" },
                 { "Full Service", "Per 7 kilogram/Comforter", "170.00" },
@@ -66,10 +98,8 @@ public class LaundryPOS extends JPanel {
 
         panel.add(Box.createVerticalStrut(25));
 
-        // Products
-        panel.add(createLabel("Products"));
-        panel.add(Box.createVerticalStrut(15));
-        panel.add(createGrid(new String[][] {
+        // Products section
+        panel.add(createSection("Products", new String[][] {
                 { "Surf Powder", "Detergent Rose Fresh 75g sachet", "7.00" },
                 { "Wings Detergent Powder", "White 40g", "7.00" },
                 { "Breeze Liquid Detergent", "60ml sachet", "15.00" },
@@ -78,6 +108,23 @@ public class LaundryPOS extends JPanel {
 
         panel.add(Box.createVerticalGlue());
         return panel;
+    }
+
+    // Creates a white rounded section container with title + grid inside
+    private JPanel createSection(String title, String[][] items) {
+        JPanel section = new JPanel();
+        section.setLayout(new BoxLayout(section, BoxLayout.Y_AXIS));
+        section.setBackground(Color.WHITE);
+        section.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(220, 220, 220), 1, true),
+            BorderFactory.createEmptyBorder(20, 20, 20, 20)
+        ));
+        section.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        section.add(createLabel(title));
+        section.add(Box.createVerticalStrut(15));
+        section.add(createGrid(items));
+        return section;
     }
 
     private JLabel createLabel(String text) {
@@ -90,7 +137,7 @@ public class LaundryPOS extends JPanel {
 
     private JPanel createGrid(String[][] items) {
         JPanel grid = new JPanel(new GridLayout(2, 2, 15, 15));
-        grid.setBackground(new Color(175, 238, 238));
+        grid.setBackground(Color.WHITE);
         grid.setMaximumSize(new Dimension(Integer.MAX_VALUE, 260));
         grid.setAlignmentX(Component.LEFT_ALIGNMENT);
 
@@ -103,7 +150,10 @@ public class LaundryPOS extends JPanel {
     private JPanel createCard(String name, String desc, String price) {
         JPanel card = new JPanel(new BorderLayout(15, 10));
         card.setBackground(Color.WHITE);
-        card.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        card.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(230, 230, 230), 1, true),
+            BorderFactory.createEmptyBorder(20, 20, 20, 20)
+        ));
 
         // Info
         JPanel info = new JPanel();
@@ -125,21 +175,59 @@ public class LaundryPOS extends JPanel {
 
         info.add(Box.createVerticalStrut(10));
 
-        JLabel priceLabel = new JLabel("₱" + price);
+        JLabel priceLabel = new JLabel("\u20B1" + price);
         priceLabel.setFont(new Font("Arial", Font.BOLD, 20));
         priceLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         info.add(priceLabel);
 
         card.add(info, BorderLayout.CENTER);
 
-        // Add button
-        JButton btn = new JButton("+");
-        btn.setPreferredSize(new Dimension(50, 50));
-        btn.setFont(new Font("Arial", Font.BOLD, 28));
-        btn.setBackground(new Color(135, 206, 250));
-        btn.setForeground(Color.WHITE);
-        btn.setBorderPainted(false);
-        btn.setFocusPainted(false);
+        // Circle "+" button
+        class CircleButton extends JButton {
+            public CircleButton(String label) {
+                super(label);
+                setPreferredSize(new Dimension(50, 50));
+                setFont(new Font("Arial", Font.BOLD, 28));
+                setBackground(new Color(135, 206, 250));
+                setForeground(Color.WHITE);
+                setContentAreaFilled(false);
+                setFocusPainted(false);
+                setBorderPainted(false);
+            }
+
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isPressed()) {
+                    g2.setColor(getBackground().darker());
+                } else {
+                    g2.setColor(getBackground());
+                }
+                g2.fillOval(0, 0, getWidth(), getHeight());
+                super.paintComponent(g2);
+                g2.dispose();
+            }
+
+            @Override
+            protected void paintBorder(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getBackground().darker());
+                g2.drawOval(0, 0, getWidth() - 1, getHeight() - 1);
+                g2.dispose();
+            }
+
+            @Override
+            public boolean contains(int x, int y) {
+                int radius = getWidth() / 2;
+                return (x - radius) * (x - radius) + (y - radius) * (y - radius) <= radius * radius;
+            }
+        }
+
+        CircleButton btn = new CircleButton("+");
+        btn.setMaximumSize(new Dimension(35, 35));
+        btn.setMinimumSize(new Dimension(35, 35));
         btn.addActionListener(e -> addToCart(name, desc, Double.parseDouble(price)));
         card.add(btn, BorderLayout.EAST);
 
@@ -160,7 +248,7 @@ public class LaundryPOS extends JPanel {
         panel.add(title);
         panel.add(Box.createVerticalStrut(30));
 
-        // Cart items
+        // Cart items scroll
         cartPanel = new JPanel();
         cartPanel.setLayout(new BoxLayout(cartPanel, BoxLayout.Y_AXIS));
         cartPanel.setBackground(Color.WHITE);
@@ -175,49 +263,29 @@ public class LaundryPOS extends JPanel {
         panel.add(Box.createVerticalGlue());
         panel.add(Box.createVerticalStrut(20));
 
-        // Totals
-        JPanel subtotalPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        subtotalPanel.setBackground(Color.WHITE);
-        subtotalPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
-        subtotalPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        JLabel subLabel = new JLabel("Subtotal: ");
-        subLabel.setFont(new Font("Arial", Font.PLAIN, 15));
-        subtotalLabel = new JLabel("₱0.00");
-        subtotalLabel.setFont(new Font("Arial", Font.PLAIN, 15));
-        subtotalPanel.add(subLabel);
-        subtotalPanel.add(subtotalLabel);
-        panel.add(subtotalPanel);
-
+        // Subtotal row
+        subtotalLabel = new JLabel("\u20B10.00");
+        panel.add(createTotalRow("Subtotal:", subtotalLabel, new Font("Arial", Font.PLAIN, 15)));
         panel.add(Box.createVerticalStrut(10));
 
-        JPanel taxPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        taxPanel.setBackground(Color.WHITE);
-        taxPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
-        taxPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        JLabel taxLabelTitle = new JLabel("Tax(12%): ");
-        taxLabelTitle.setFont(new Font("Arial", Font.PLAIN, 15));
-        taxLabel = new JLabel("₱0.00");
-        taxLabel.setFont(new Font("Arial", Font.PLAIN, 15));
-        taxPanel.add(taxLabelTitle);
-        taxPanel.add(taxLabel);
-        panel.add(taxPanel);
-
+        // Tax row
+        taxLabel = new JLabel("\u20B10.00");
+        panel.add(createTotalRow("Tax(12%):", taxLabel, new Font("Arial", Font.PLAIN, 15)));
         panel.add(Box.createVerticalStrut(15));
 
-        JPanel totalPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        totalPanel.setBackground(Color.WHITE);
-        totalPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-        totalPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        JLabel totalLabelTitle = new JLabel("Total: ");
-        totalLabelTitle.setFont(new Font("Arial", Font.BOLD, 18));
-        totalLabel = new JLabel("₱0.00");
-        totalLabel.setFont(new Font("Arial", Font.BOLD, 18));
-        totalPanel.add(totalLabelTitle);
-        totalPanel.add(totalLabel);
-        panel.add(totalPanel);
+        // Separator line
+        JSeparator sep = new JSeparator();
+        sep.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+        sep.setForeground(new Color(220, 220, 220));
+        panel.add(sep);
+        panel.add(Box.createVerticalStrut(15));
+
+        // Total row
+        totalLabel = new JLabel("\u20B10.00");
+        panel.add(createTotalRow("Total:", totalLabel, new Font("Arial", Font.BOLD, 18)));
         panel.add(Box.createVerticalStrut(25));
 
-        // Checkout button - centered
+        // Checkout button
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         buttonPanel.setBackground(Color.WHITE);
         buttonPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 65));
@@ -233,21 +301,18 @@ public class LaundryPOS extends JPanel {
             if (cart.isEmpty()) {
                 JOptionPane.showMessageDialog(this, "Cart is empty!");
             } else {
-                // Calculate totals
                 double subtotal = 0;
                 for (Item item : cart) {
-                    subtotal += item.price * (item.qty / 7.0);
+                    subtotal += item.price * item.qty;
                 }
                 double tax = subtotal * 0.12;
 
-                // Open checkout screen as a dialog
                 JDialog checkoutDialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(LaundryPOS.this),
                         "Checkout", true);
                 checkoutDialog.setSize(900, 700);
                 checkoutDialog.setLocationRelativeTo(LaundryPOS.this);
 
-                CheckoutScreen checkoutScreen = new CheckoutScreen(LaundryPOS.this, new ArrayList<>(cart), subtotal,
-                        tax);
+                CheckoutScreen checkoutScreen = new CheckoutScreen(LaundryPOS.this, new ArrayList<>(cart), subtotal, tax);
                 checkoutDialog.add(checkoutScreen);
                 checkoutDialog.setVisible(true);
             }
@@ -258,6 +323,22 @@ public class LaundryPOS extends JPanel {
         return panel;
     }
 
+    // Helper to create a right-aligned total row
+    private JPanel createTotalRow(String labelText, JLabel valueLabel, Font font) {
+        JPanel row = new JPanel(new BorderLayout());
+        row.setBackground(Color.WHITE);
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+        row.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel lbl = new JLabel(labelText);
+        lbl.setFont(font);
+        valueLabel.setFont(font);
+
+        row.add(lbl, BorderLayout.WEST);
+        row.add(valueLabel, BorderLayout.EAST);
+        return row;
+    }
+
     // Method to clear cart after successful checkout
     public void clearCart() {
         cart.clear();
@@ -265,16 +346,14 @@ public class LaundryPOS extends JPanel {
     }
 
     private void addToCart(String name, String desc, double price) {
-        // Check if item exists
         for (Item item : cart) {
             if (item.name.equals(name)) {
-                item.qty += 7;
+                item.qty += 1;
                 updateCart();
                 return;
             }
         }
-        // Add new item
-        cart.add(new Item(name, desc, price, 7));
+        cart.add(new Item(name, desc, price, 1));
         updateCart();
     }
 
@@ -298,8 +377,7 @@ public class LaundryPOS extends JPanel {
 
             itemPanel.add(Box.createVerticalStrut(3));
 
-            // Show price + description combined (like "₱70.00 Per 7 kilogram/Comforter")
-            JLabel priceDescLabel = new JLabel("₱" + String.format("%.2f", item.price) + " " + item.desc);
+            JLabel priceDescLabel = new JLabel("\u20B1" + String.format("%.2f", item.price) + " " + item.desc);
             priceDescLabel.setFont(new Font("Arial", Font.PLAIN, 11));
             priceDescLabel.setForeground(Color.GRAY);
             priceDescLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -307,7 +385,7 @@ public class LaundryPOS extends JPanel {
 
             itemPanel.add(Box.createVerticalStrut(10));
 
-            // Quantity and price
+            // Quantity and price row
             JPanel bottom = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 0));
             bottom.setBackground(new Color(245, 245, 245));
             bottom.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
@@ -323,8 +401,8 @@ public class LaundryPOS extends JPanel {
             minus.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
             minus.setFocusPainted(false);
             minus.addActionListener(e -> {
-                if (item.qty > 7) {
-                    item.qty -= 7;
+                if (item.qty > 1) {
+                    item.qty -= 1;
                 } else {
                     cart.remove(item);
                 }
@@ -341,7 +419,7 @@ public class LaundryPOS extends JPanel {
             plus.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
             plus.setFocusPainted(false);
             plus.addActionListener(e -> {
-                item.qty += 7;
+                item.qty += 1;
                 updateCart();
             });
 
@@ -349,8 +427,8 @@ public class LaundryPOS extends JPanel {
             qtyPanel.add(qtyLabel);
             qtyPanel.add(plus);
 
-            double itemTotal = item.price * (item.qty / 7.0);
-            JLabel priceLabel = new JLabel("₱" + String.format("%.2f", itemTotal));
+            double itemTotal = item.price * item.qty;
+            JLabel priceLabel = new JLabel("\u20B1" + String.format("%.2f", itemTotal));
             priceLabel.setFont(new Font("Arial", Font.BOLD, 15));
 
             bottom.add(qtyPanel);
@@ -365,10 +443,11 @@ public class LaundryPOS extends JPanel {
         }
 
         double tax = subtotal * 0.12;
+        double total = subtotal + tax;
 
-        subtotalLabel.setText("₱" + String.format("%.2f", subtotal));
-        taxLabel.setText("₱" + String.format("%.2f", tax));
-        totalLabel.setText("₱" + String.format("%.2f", subtotal));
+        subtotalLabel.setText("\u20B1" + String.format("%.2f", subtotal));
+        taxLabel.setText("\u20B1" + String.format("%.2f", tax));
+        totalLabel.setText("\u20B1" + String.format("%.2f", total));  // FIX: was showing subtotal before
 
         cartPanel.revalidate();
         cartPanel.repaint();
