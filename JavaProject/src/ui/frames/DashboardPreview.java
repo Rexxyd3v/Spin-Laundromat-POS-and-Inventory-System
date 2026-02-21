@@ -10,7 +10,7 @@ import src.ui.panels.posPanel.LaundryPOS;
 import src.ui.panels.reportPanel.LaundryReportsSystem;
 import src.ui.panels.settingsPanel.SettingsPanelPreview;
 import src.ui.panels.userPanel.UserManagementPanel;
-import src.util.UIStyle;
+import src.util.config.*;
 
 public class DashboardPreview extends JFrame {
     private final Staff staff;

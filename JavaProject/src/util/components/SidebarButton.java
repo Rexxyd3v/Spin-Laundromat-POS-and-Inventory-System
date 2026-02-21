@@ -2,7 +2,7 @@ package src.util.components;
 
 import java.awt.*;
 import javax.swing.*;
-import src.util.UIStyle;
+import src.util.config.UIStyle;
 
 public class SidebarButton extends JButton {
     private boolean active = false;

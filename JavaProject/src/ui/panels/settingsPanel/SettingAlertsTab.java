@@ -2,7 +2,7 @@ package src.ui.panels.settingsPanel;
 
 import src.util.components.ShadowPanel;
 import src.util.components.BrandIcons;
-import src.util.UIStyle;
+import src.util.config.*;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;

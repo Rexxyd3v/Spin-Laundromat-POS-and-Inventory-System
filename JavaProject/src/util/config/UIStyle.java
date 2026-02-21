@@ -1,4 +1,4 @@
-package src.util;
+package src.util.config;
 
 import java.awt.Color;
 import java.awt.Font;

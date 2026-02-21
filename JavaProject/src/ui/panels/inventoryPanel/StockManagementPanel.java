@@ -3,7 +3,7 @@ import java.awt.*;
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
-import src.util.UIStyle;
+import src.util.config.*;
 
 public class StockManagementPanel extends JPanel {
 

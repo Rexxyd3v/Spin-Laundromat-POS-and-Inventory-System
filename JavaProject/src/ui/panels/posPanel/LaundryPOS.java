@@ -4,7 +4,6 @@ import java.awt.*;
 import java.util.ArrayList;
 import javax.swing.*;
 
-
 public class LaundryPOS extends JPanel {
     private final ArrayList<Item> cart = new ArrayList<>();
     private JPanel cartPanel;

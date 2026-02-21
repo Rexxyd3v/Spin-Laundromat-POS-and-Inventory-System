@@ -4,6 +4,7 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import src.model.User;
+import src.util.config.UIStyle;
 
 /**
  * Custom cell renderers for the user table
@@ -21,7 +22,7 @@ public class UserTableRenderers {
             if (value instanceof User) {
                 User user = (User) value;
 
-                JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 8));
+                JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 10));
                 panel.setOpaque(true);
                 panel.setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
 
@@ -35,12 +36,12 @@ public class UserTableRenderers {
                 infoPanel.setOpaque(false);
 
                 JLabel nameLabel = new JLabel(user.getName());
-                nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
-                nameLabel.setForeground(new Color(50, 50, 50));
+                nameLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+                nameLabel.setForeground(UIStyle.TEXT_PRIMARY);
 
                 JLabel contactLabel = new JLabel(user.getContactNumber());
-                contactLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-                contactLabel.setForeground(new Color(120, 120, 120));
+                contactLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+                contactLabel.setForeground(UIStyle.TEXT_SECONDARY);
 
                 infoPanel.add(nameLabel);
                 infoPanel.add(Box.createVerticalStrut(2));
@@ -62,20 +63,18 @@ public class UserTableRenderers {
         public Component getTableCellRendererComponent(JTable table, Object value,
                 boolean isSelected, boolean hasFocus, int row, int column) {
 
-            JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 8));
+            JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 12));
             panel.setOpaque(true);
             panel.setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
 
             if (value instanceof User.UserRole) {
                 User.UserRole role = (User.UserRole) value;
+                String roleStr = role.getDisplayName();
+                Color badgeBg = role == User.UserRole.ADMIN ? new Color(31, 41, 55) : new Color(224, 242, 254);
+                Color badgeFg = role == User.UserRole.ADMIN ? Color.WHITE : new Color(3, 105, 161);
 
-                JLabel iconLabel = new JLabel("👤");
-                iconLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-                panel.add(iconLabel);
-
-                Color badgeColor = role == User.UserRole.ADMIN ? new Color(50, 50, 50) : new Color(100, 100, 100);
-
-                JLabel badge = createBadge(role.getDisplayName(), badgeColor);
+                JLabel badge = createIconBadge(roleStr, role == User.UserRole.ADMIN ? "ADMIN" : "STAFF", badgeBg,
+                        badgeFg);
                 panel.add(badge);
             }
 
@@ -91,15 +90,16 @@ public class UserTableRenderers {
         public Component getTableCellRendererComponent(JTable table, Object value,
                 boolean isSelected, boolean hasFocus, int row, int column) {
 
-            JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 8));
+            JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 12));
             panel.setOpaque(true);
             panel.setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
 
             if (value instanceof String) {
                 String status = (String) value;
-                Color badgeColor = status.equals("Active") ? new Color(76, 175, 80) : new Color(158, 158, 158);
+                Color badgeBg = new Color(55, 65, 81); // Dark badge for status as per screenshot
+                Color badgeFg = Color.WHITE;
 
-                JLabel badge = createBadge(status, badgeColor);
+                JLabel badge = createBadge(status, badgeBg, badgeFg);
                 panel.add(badge);
             }
 
@@ -139,29 +139,44 @@ public class UserTableRenderers {
         public Component getTableCellRendererComponent(JTable table, Object value,
                 boolean isSelected, boolean hasFocus, int row, int column) {
 
-            JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
+            JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 15));
             panel.setOpaque(true);
             panel.setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
 
-            JButton editButton = new JButton("✏️");
-            editButton.setToolTipText("Edit User");
-            editButton.setFocusPainted(false);
-            editButton.setContentAreaFilled(false);
-            editButton.setBorderPainted(false);
-            editButton.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-            editButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            JLabel editLabel = new JLabel();
+            boolean imgLoaded = false;
+            try {
+                String imgPath = "/src/resources/images/edit.png";
+                java.net.URL imgUrl = getClass().getResource(imgPath);
+                if (imgUrl != null) {
+                    ImageIcon editIcon = new ImageIcon(imgUrl);
+                    // Increased size to 28x28 for better visibility
+                    Image img = editIcon.getImage().getScaledInstance(28, 28, Image.SCALE_SMOOTH);
+                    editLabel.setIcon(new ImageIcon(img));
+                    imgLoaded = true;
+                }
+            } catch (Exception e) {
+                imgLoaded = false;
+            }
 
-            JButton viewButton = new JButton("👤");
-            viewButton.setToolTipText("View Details");
-            viewButton.setFocusPainted(false);
-            viewButton.setContentAreaFilled(false);
-            viewButton.setBorderPainted(false);
-            viewButton.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-            viewButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            if (!imgLoaded) {
+                // Fallback to custom drawing if image fails
+                editLabel = new JLabel() {
+                    @Override
+                    protected void paintComponent(Graphics g) {
+                        Graphics2D g2 = (Graphics2D) g.create();
+                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                        g2.setColor(new Color(245, 158, 11));
+                        int w = getWidth();
+                        int h = getHeight();
+                        g2.fillRoundRect(w / 4, h / 4, w / 2, h / 2, 4, 4);
+                        g2.dispose();
+                    }
+                };
+            }
+            editLabel.setPreferredSize(new Dimension(35, 35));
 
-            panel.add(editButton);
-            panel.add(viewButton);
-
+            panel.add(editLabel);
             return panel;
         }
     }
@@ -170,25 +185,74 @@ public class UserTableRenderers {
      * Helper method to create avatar label
      */
     private static JLabel createAvatarLabel(String initials) {
-        JLabel label = new JLabel(initials, SwingConstants.CENTER);
-        label.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        label.setForeground(new Color(100, 100, 100));
+        JLabel label = new JLabel(initials, SwingConstants.CENTER) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getBackground());
+                g2.fillOval(0, 0, getWidth() - 1, getHeight() - 1);
+                super.paintComponent(g2);
+                g2.dispose();
+            }
+        };
+        label.setFont(new Font("SansSerif", Font.BOLD, 15));
+        label.setForeground(new Color(75, 85, 99));
         label.setPreferredSize(new Dimension(45, 45));
-        label.setOpaque(true);
-        label.setBackground(new Color(230, 230, 230));
+        label.setOpaque(false);
+        label.setBackground(new Color(229, 231, 235));
         return label;
     }
 
-    /**
-     * Helper method to create badge
-     */
-    private static JLabel createBadge(String text, Color bgColor) {
-        JLabel badge = new JLabel(text);
-        badge.setOpaque(true);
+    private static JLabel createIconBadge(String text, String type, Color bgColor, Color fgColor) {
+        JLabel badge = new JLabel("    " + text) { // Space for icon
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getBackground());
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), getHeight(), getHeight());
+
+                // Draw icon
+                g2.setColor(getForeground());
+                int h = getHeight();
+                if (type.equals("ADMIN")) {
+                    g2.drawRoundRect(10, h / 3, 10, 8, 2, 2);
+                } else { // STAFF
+                    g2.fillOval(10, h / 4, 6, 6);
+                    g2.fillArc(8, h / 2, 10, 6, 0, 180);
+                }
+
+                super.paintComponent(g2);
+                g2.dispose();
+            }
+        };
+        badge.setOpaque(false);
         badge.setBackground(bgColor);
-        badge.setForeground(Color.WHITE);
-        badge.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        badge.setBorder(BorderFactory.createEmptyBorder(4, 12, 4, 12));
+        badge.setForeground(fgColor);
+        badge.setFont(new Font("SansSerif", Font.BOLD, 11));
+        badge.setBorder(BorderFactory.createEmptyBorder(4, 25, 4, 15));
+        return badge;
+    }
+
+    private static JLabel createBadge(String text, Color bgColor, Color fgColor) {
+        JLabel badge = new JLabel(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getBackground());
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), getHeight(), getHeight());
+                super.paintComponent(g2);
+                g2.dispose();
+            }
+        };
+        badge.setOpaque(false);
+        badge.setBackground(bgColor);
+        badge.setForeground(fgColor);
+        badge.setFont(new Font("SansSerif", Font.BOLD, 11));
+        badge.setBorder(BorderFactory.createEmptyBorder(4, 15, 4, 15));
+        badge.setHorizontalAlignment(SwingConstants.CENTER);
         return badge;
     }
 }
