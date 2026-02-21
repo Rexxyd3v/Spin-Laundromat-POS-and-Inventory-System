@@ -66,22 +66,70 @@ public class StaffLoginPreview extends JFrame {
         JPanel formPanel = new JPanel();
         formPanel.setLayout(new BoxLayout(formPanel, BoxLayout.Y_AXIS));
         formPanel.setOpaque(false);
-        formPanel.setMaximumSize(new Dimension(650, 180));
+        formPanel.setMaximumSize(new Dimension(650, 250));
         formPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel uLabel = createFieldLabel("Username");
-        usernameField = createStyledTextField("Enter your username", false);
+        Dimension fieldSize = new Dimension(650, 55);
+        // Create password field and toggle button
+JLabel uLabel = createFieldLabel("Username");
+usernameField = createStyledTextField("Enter your username", false);
 
-        JLabel pLabel = createFieldLabel("Password");
-        passwordField = (JPasswordField) createStyledTextField("Enter your password", true);
+JLabel pLabel = createFieldLabel("Password");
+passwordField = (JPasswordField) createStyledTextField("Enter your password", true);
 
-        formPanel.add(uLabel);
-        formPanel.add(Box.createVerticalStrut(8));
-        formPanel.add(usernameField);
-        formPanel.add(Box.createVerticalStrut(20));
-        formPanel.add(pLabel);
-        formPanel.add(Box.createVerticalStrut(8));
-        formPanel.add(passwordField);
+// --- Eye toggle button ---
+JButton togglePasswordBtn = new JButton("👁");
+togglePasswordBtn.setFocusPainted(false);
+togglePasswordBtn.setBorderPainted(false);
+togglePasswordBtn.setContentAreaFilled(false);
+togglePasswordBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+togglePasswordBtn.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 16));
+togglePasswordBtn.setToolTipText("Show/Hide password");
+
+// Track visibility state
+final boolean[] isVisible = {false};
+
+togglePasswordBtn.addActionListener(e -> {
+    isVisible[0] = !isVisible[0];
+    if (isVisible[0]) {
+        passwordField.setEchoChar((char) 0); // Show password
+        togglePasswordBtn.setText("🙈");     // Change icon
+    } else {
+        passwordField.setEchoChar('•');     // Hide password●
+        togglePasswordBtn.setText("👁");     // Reset icon
+    }
+});
+
+// --- Wrap password field + button in a panel ---
+JPanel passwordWrapper = new JPanel(new BorderLayout());
+passwordWrapper.setBackground(passwordField.getBackground());
+passwordWrapper.setBorder(passwordField.getBorder());
+passwordWrapper.setMaximumSize(passwordField.getMaximumSize()); // Keep same size
+
+// Remove border from actual field to avoid double border
+passwordField.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 0));
+passwordWrapper.add(passwordField, BorderLayout.CENTER);
+passwordWrapper.add(togglePasswordBtn, BorderLayout.EAST);usernameField.setMaximumSize(fieldSize);
+usernameField.setPreferredSize(fieldSize);
+usernameField.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+// Password wrapper size
+passwordWrapper.setMaximumSize(fieldSize);
+passwordWrapper.setPreferredSize(fieldSize);
+passwordWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+// Labels alignment
+uLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+pLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+formPanel.setLayout(new BoxLayout(formPanel, BoxLayout.Y_AXIS));
+// --- Add to form ---
+formPanel.add(uLabel);
+formPanel.add(Box.createVerticalStrut(8));
+formPanel.add(usernameField);
+formPanel.add(Box.createVerticalStrut(20));
+formPanel.add(pLabel);
+formPanel.add(Box.createVerticalStrut(8));
+formPanel.add(passwordWrapper); // Use wrapper instead of passwordField directly
 
         // 4. Sign In Button
         JButton signInBtn = createBlackSignInButton();

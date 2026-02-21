@@ -46,9 +46,65 @@ public class MasterKeyPreview extends JFrame {
         sectionTitle.setForeground(HEADING_DARK);
         sectionTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        masterKeyField = new RoundPasswordField(20);
-        masterKeyField.setMaximumSize(new Dimension(420, 50));
-        masterKeyField.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JPanel passwordPanel = new JPanel(new BorderLayout());
+passwordPanel.setOpaque(false);
+passwordPanel.setMaximumSize(new Dimension(420, 50));
+passwordPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+masterKeyField = new RoundPasswordField(20);
+masterKeyField.setFont(new Font("SansSerif", Font.PLAIN, 14));
+// Eye toggle button
+JButton eyeButton = new JButton() {
+    @Override
+    protected void paintComponent(Graphics g) {
+        // Draw eye icon manually using Graphics2D
+        Graphics2D g2 = (Graphics2D) g.create();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setColor(HEADING_DARK);
+        int cx = getWidth() / 2, cy = getHeight() / 2;
+
+        if (masterKeyField.getEchoChar() == 0) {
+            // Eye OPEN — password is visible, clicking will hide it
+            g2.drawOval(cx - 8, cy - 5, 16, 10);
+            g2.fillOval(cx - 3, cy - 3, 6, 6);
+
+        } else {
+            // Eye CLOSED — password is hidden, clicking will show it
+            g2.drawOval(cx - 8, cy - 5, 16, 10);
+            g2.fillOval(cx - 3, cy - 3, 6, 6);
+            g2.setStroke(new BasicStroke(2));
+            g2.drawLine(cx - 10, cy + 6, cx + 10, cy - 6); // slash line
+        }
+
+        g2.dispose();
+    }
+};
+
+eyeButton.setPreferredSize(new Dimension(40, 50));
+eyeButton.setContentAreaFilled(false);
+eyeButton.setBorderPainted(false);
+eyeButton.setFocusPainted(false);
+eyeButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+eyeButton.setToolTipText("Show/Hide password");
+
+// Toggle logic
+eyeButton.addActionListener(e -> {
+    if (masterKeyField.getEchoChar() == 0) {
+        // Currently visible → hide it
+        masterKeyField.setEchoChar('•');
+        eyeButton.setToolTipText("Show password");
+    } else {
+        // Currently hidden → show it
+        masterKeyField.setEchoChar((char) 0);
+        eyeButton.setToolTipText("Hide password");
+    }
+    masterKeyField.setFont(new Font("SansSerif", Font.PLAIN, 14));
+    eyeButton.repaint();
+    masterKeyField.requestFocusInWindow();
+});
+
+passwordPanel.add(masterKeyField, BorderLayout.CENTER);
+passwordPanel.add(eyeButton, BorderLayout.EAST);
 
         JPanel optionsPanel = new JPanel(new BorderLayout());
         optionsPanel.setOpaque(false);
@@ -99,7 +155,7 @@ public class MasterKeyPreview extends JFrame {
         card.add(Box.createVerticalStrut(40));
         card.add(sectionTitle);
         card.add(Box.createVerticalStrut(30));
-        card.add(masterKeyField);
+        card.add(passwordPanel);
         card.add(Box.createVerticalStrut(10));
         card.add(optionsPanel);
         card.add(Box.createVerticalStrut(50));
