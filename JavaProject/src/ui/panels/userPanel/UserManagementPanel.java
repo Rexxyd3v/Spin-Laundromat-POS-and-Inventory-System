@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.plaf.basic.BasicArrowButton;
+import javax.swing.plaf.basic.BasicComboBoxUI;
 import javax.swing.table.DefaultTableCellRenderer;
 import src.model.User;
 import src.util.config.UIStyle;
@@ -122,15 +124,24 @@ public class UserManagementPanel extends JPanel {
                 };
                 addButton.setFont(new Font("SansSerif", Font.BOLD, 12));
                 addButton.setForeground(Color.WHITE);
-                addButton.setPreferredSize(new Dimension(120, 32));
+                addButton.setPreferredSize(new Dimension(110, 34));
+                addButton.setMaximumSize(new Dimension(110, 34));
                 addButton.setFocusPainted(false);
                 addButton.setBorderPainted(false);
                 addButton.setContentAreaFilled(false);
                 addButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
                 addButton.addActionListener(e -> showAddUserDialog());
 
+                // Wrap in panel so BorderLayout.EAST doesn't stretch the height
+                JPanel btnWrapper = new JPanel();
+                btnWrapper.setLayout(new BoxLayout(btnWrapper, BoxLayout.Y_AXIS));
+                btnWrapper.setOpaque(false);
+                btnWrapper.add(Box.createVerticalGlue());
+                btnWrapper.add(addButton);
+                btnWrapper.add(Box.createVerticalGlue());
+
                 panel.add(titlePanel, BorderLayout.WEST);
-                panel.add(addButton, BorderLayout.EAST);
+                panel.add(btnWrapper, BorderLayout.EAST);
 
                 return panel;
         }
@@ -162,91 +173,242 @@ public class UserManagementPanel extends JPanel {
         }
 
         private JPanel createTablePanel() {
-                JPanel panel = new JPanel(new BorderLayout(0, 15));
-                panel.setBackground(Color.WHITE);
-                panel.setBorder(BorderFactory.createCompoundBorder(
-                                BorderFactory.createLineBorder(new Color(230, 230, 230)),
-                                new EmptyBorder(20, 20, 20, 20)));
+                // ── Outer wrapper: holds search bar + table card stacked vertically ──
+                JPanel wrapper = new JPanel(new BorderLayout(0, 14));
+                wrapper.setOpaque(false);
 
-                // Search and filter container (Rounded White with soft border)
-                JPanel searchContainer = new JPanel(new BorderLayout(15, 0));
-                searchContainer.setBackground(Color.WHITE);
-                searchContainer.setBorder(BorderFactory.createCompoundBorder(
-                                BorderFactory.createLineBorder(UIStyle.BORDER_LIGHT, 1, true),
-                                new EmptyBorder(10, 25, 10, 25)));
+                // ── Search / Filter Bar (standalone, outside the card) ──────────────
+                JPanel searchRow = new JPanel(new BorderLayout(12, 0));
+                searchRow.setOpaque(false);
 
-                JTextField searchField = new JTextField("Search users...");
-                searchField.setFont(new Font("SansSerif", Font.PLAIN, 14));
+                // Search pill
+                JPanel searchPill = new JPanel(new BorderLayout(10, 0)) {
+                        @Override
+                        protected void paintComponent(Graphics g) {
+                                Graphics2D g2 = (Graphics2D) g.create();
+                                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                                g2.setColor(Color.WHITE);
+                                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 50, 50);
+                                g2.setColor(new Color(226, 232, 240));
+                                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 50, 50);
+                                g2.dispose();
+                        }
+                };
+                searchPill.setOpaque(false);
+                searchPill.setBackground(Color.WHITE);
+                searchPill.setBorder(new EmptyBorder(9, 20, 9, 20));
+
+                // Search icon (unicode magnifier)
+                JLabel searchIcon = new JLabel("\uD83D\uDD0D");
+                searchIcon.setFont(new Font("SansSerif", Font.PLAIN, 14));
+                searchIcon.setForeground(new Color(148, 163, 184));
+
+                JTextField searchField = new JTextField();
+                searchField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
                 searchField.setForeground(UIStyle.TEXT_SECONDARY);
-                searchField.setBorder(null);
+                searchField.setBackground(new Color(0, 0, 0, 0));
+                searchField.setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 0));
+                searchField.setOpaque(false);
+                searchField.setToolTipText("Search users...");
+
+                // Placeholder behaviour
+                searchField.setText("Search users...");
+                searchField.addFocusListener(new java.awt.event.FocusAdapter() {
+                        @Override
+                        public void focusGained(java.awt.event.FocusEvent e) {
+                                if (searchField.getText().equals("Search users...")) {
+                                        searchField.setText("");
+                                        searchField.setForeground(UIStyle.TEXT_PRIMARY);
+                                }
+                        }
+
+                        @Override
+                        public void focusLost(java.awt.event.FocusEvent e) {
+                                if (searchField.getText().isEmpty()) {
+                                        searchField.setText("Search users...");
+                                        searchField.setForeground(UIStyle.TEXT_SECONDARY);
+                                }
+                        }
+                });
+
+                searchPill.add(searchIcon, BorderLayout.WEST);
+                searchPill.add(searchField, BorderLayout.CENTER);
+
+                // Role filter pill
+                JPanel filterPill = new JPanel(new BorderLayout()) {
+                        @Override
+                        protected void paintComponent(Graphics g) {
+                                Graphics2D g2 = (Graphics2D) g.create();
+                                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                                g2.setColor(Color.WHITE);
+                                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 50, 50);
+                                g2.setColor(new Color(226, 232, 240));
+                                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 50, 50);
+                                g2.dispose();
+                        }
+                };
+                filterPill.setOpaque(false);
+                filterPill.setBackground(Color.WHITE);
+                filterPill.setBorder(new EmptyBorder(6, 16, 6, 16));
 
                 JComboBox<String> roleFilter = new JComboBox<>(new String[] { "All Roles", "Admin", "Staff" });
-                roleFilter.setFont(new Font("SansSerif", Font.BOLD, 12));
+                roleFilter.setFont(new Font("Segoe UI", Font.PLAIN, 13));
                 roleFilter.setForeground(UIStyle.TEXT_PRIMARY);
                 roleFilter.setBackground(Color.WHITE);
                 roleFilter.setBorder(null);
+                roleFilter.setOpaque(false);
+                roleFilter.setPreferredSize(new Dimension(130, 30));
+                roleFilter.setFocusable(false);
+                // Custom UI: remove box border, invisible arrow button with a simple ▾ drawn
+                roleFilter.setUI(new BasicComboBoxUI() {
+                        @Override
+                        protected JButton createArrowButton() {
+                                JButton btn = new BasicArrowButton(BasicArrowButton.SOUTH,
+                                                Color.WHITE, Color.WHITE,
+                                                new Color(100, 116, 139), Color.WHITE);
+                                btn.setBorder(BorderFactory.createEmptyBorder());
+                                btn.setBackground(Color.WHITE);
+                                btn.setOpaque(false);
+                                return btn;
+                        }
 
-                searchContainer.add(searchField, BorderLayout.CENTER);
-                searchContainer.add(roleFilter, BorderLayout.EAST);
+                        @Override
+                        public void paintCurrentValueBackground(Graphics g, Rectangle bounds, boolean hasFocus) {
+                                // No background — pill paints it
+                        }
+                });
 
-                // Table header
-                JLabel tableHeader = new JLabel("Accounts (" + tableModel.getRowCount() + ")");
-                tableHeader.setFont(new Font("SansSerif", Font.BOLD, 18));
+                filterPill.add(roleFilter, BorderLayout.CENTER);
+
+                searchRow.add(searchPill, BorderLayout.CENTER);
+                searchRow.add(filterPill, BorderLayout.EAST);
+
+                wrapper.add(searchRow, BorderLayout.NORTH);
+
+                // ── Table Card ───────────────────────────────────────────────────────
+                JPanel card = new JPanel(new BorderLayout(0, 0));
+                card.setBackground(Color.WHITE);
+                card.setBorder(BorderFactory.createCompoundBorder(
+                                BorderFactory.createLineBorder(new Color(226, 232, 240), 1),
+                                new EmptyBorder(24, 24, 24, 24)));
+
+                // Card top bar: title + count badge
+                JPanel cardTopBar = new JPanel(new BorderLayout());
+                cardTopBar.setOpaque(false);
+                cardTopBar.setBorder(new EmptyBorder(0, 0, 16, 0));
+
+                JPanel titleGroup = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+                titleGroup.setOpaque(false);
+
+                JLabel tableHeader = new JLabel("Accounts");
+                tableHeader.setFont(new Font("Segoe UI", Font.BOLD, 17));
                 tableHeader.setForeground(UIStyle.TEXT_PRIMARY);
-                tableHeader.setBorder(new EmptyBorder(25, 0, 15, 0));
 
-                // Create table
-                userTable = new JTable(tableModel);
-                userTable.setRowHeight(65);
+                // Count badge
+                JLabel countBadge = new JLabel(String.valueOf(tableModel.getRowCount())) {
+                        @Override
+                        protected void paintComponent(Graphics g) {
+                                Graphics2D g2 = (Graphics2D) g.create();
+                                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                                g2.setColor(new Color(241, 245, 249));
+                                g2.fillRoundRect(0, 0, getWidth(), getHeight(), getHeight(), getHeight());
+                                g2.dispose();
+                                super.paintComponent(g);
+                        }
+                };
+                countBadge.setFont(new Font("Segoe UI", Font.BOLD, 12));
+                countBadge.setForeground(new Color(100, 116, 139));
+                countBadge.setBorder(new EmptyBorder(2, 10, 2, 10));
+                countBadge.setOpaque(false);
+
+                titleGroup.add(tableHeader);
+                titleGroup.add(countBadge);
+                cardTopBar.add(titleGroup, BorderLayout.WEST);
+
+                card.add(cardTopBar, BorderLayout.NORTH);
+
+                // ── The JTable ────────────────────────────────────────────────────
+                final Color ROW_ODD = Color.WHITE;
+                final Color ROW_EVEN = new Color(248, 250, 252);
+                final Color ROW_SEL = new Color(239, 246, 255);
+
+                userTable = new JTable(tableModel) {
+                        @Override
+                        public Component prepareRenderer(javax.swing.table.TableCellRenderer renderer, int row,
+                                        int col) {
+                                Component c = super.prepareRenderer(renderer, row, col);
+                                if (!isRowSelected(row)) {
+                                        c.setBackground(row % 2 == 0 ? ROW_ODD : ROW_EVEN);
+                                } else {
+                                        c.setBackground(ROW_SEL);
+                                }
+                                return c;
+                        }
+                };
+                userTable.setRowHeight(62);
                 userTable.setShowGrid(false);
                 userTable.setIntercellSpacing(new Dimension(0, 0));
-                userTable.setBackground(Color.WHITE);
-                userTable.setSelectionBackground(new Color(240, 248, 255));
-                userTable.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
-                userTable.getTableHeader().setForeground(UIStyle.TEXT_SECONDARY);
-                userTable.getTableHeader().setBackground(Color.WHITE);
-                userTable.getTableHeader().setBorder(
-                                BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(230, 230, 230)));
+                userTable.setBackground(ROW_ODD);
+                userTable.setSelectionBackground(ROW_SEL);
+                userTable.setFocusable(false);
 
-                // Set custom renderers
-                userTable.getColumnModel().getColumn(0).setCellRenderer(
-                                new UserTableRenderers.UserCellRenderer());
-                userTable.getColumnModel().getColumn(1).setCellRenderer(
-                                new UserTableRenderers.RoleCellRenderer());
-                userTable.getColumnModel().getColumn(2).setCellRenderer(
-                                new UserTableRenderers.StatusCellRenderer());
-                userTable.getColumnModel().getColumn(3).setCellRenderer(
-                                new UserTableRenderers.DateCellRenderer());
-                userTable.getColumnModel().getColumn(4).setCellRenderer(
-                                new UserTableRenderers.DateCellRenderer());
-                userTable.getColumnModel().getColumn(5).setCellRenderer(
-                                new UserTableRenderers.ActionCellRenderer());
+                // Header
+                javax.swing.table.JTableHeader th = userTable.getTableHeader();
+                th.setFont(new Font("Segoe UI", Font.BOLD, 11));
+                th.setForeground(new Color(100, 116, 139));
+                th.setBackground(new Color(248, 250, 252));
+                th.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(226, 232, 240)));
+                th.setPreferredSize(new Dimension(0, 38));
+                th.setReorderingAllowed(false);
 
-                // Set column widths
-                userTable.getColumnModel().getColumn(0).setPreferredWidth(250);
-                userTable.getColumnModel().getColumn(1).setPreferredWidth(150);
-                userTable.getColumnModel().getColumn(2).setPreferredWidth(120);
-                userTable.getColumnModel().getColumn(5).setPreferredWidth(100);
-                DefaultTableCellRenderer headerRenderer = (DefaultTableCellRenderer) userTable.getTableHeader()
-                                .getDefaultRenderer();
-                headerRenderer.setHorizontalAlignment(JLabel.CENTER);
+                // Column 0 (User) header stays LEFT, all others CENTER
+                DefaultTableCellRenderer headerLeft = new DefaultTableCellRenderer();
+                headerLeft.setHorizontalAlignment(JLabel.LEFT);
+                headerLeft.setBackground(new Color(248, 250, 252));
+                headerLeft.setForeground(new Color(30, 41, 59));
+                headerLeft.setBorder(new EmptyBorder(0, 12, 0, 12));
+                headerLeft.setFont(new Font("Segoe UI", Font.BOLD, 11));
+
+                DefaultTableCellRenderer headerCenter = new DefaultTableCellRenderer();
+                headerCenter.setHorizontalAlignment(JLabel.CENTER);
+                headerCenter.setBackground(new Color(248, 250, 252));
+                headerCenter.setForeground(new Color(30, 41, 59));
+                headerCenter.setBorder(new EmptyBorder(0, 0, 0, 0));
+                headerCenter.setFont(new Font("Segoe UI", Font.BOLD, 11));
+
+                userTable.getColumnModel().getColumn(0).setHeaderRenderer(headerLeft);
+                for (int i = 1; i < userTable.getColumnCount(); i++) {
+                        userTable.getColumnModel().getColumn(i).setHeaderRenderer(headerCenter);
+                }
+
+                // Cell renderers
+                userTable.getColumnModel().getColumn(0).setCellRenderer(new UserTableRenderers.UserCellRenderer());
+                userTable.getColumnModel().getColumn(1).setCellRenderer(new UserTableRenderers.RoleCellRenderer());
+                userTable.getColumnModel().getColumn(2).setCellRenderer(new UserTableRenderers.StatusCellRenderer());
+                userTable.getColumnModel().getColumn(3).setCellRenderer(new UserTableRenderers.DateCellRenderer());
+                userTable.getColumnModel().getColumn(4).setCellRenderer(new UserTableRenderers.DateCellRenderer());
+                userTable.getColumnModel().getColumn(5).setCellRenderer(new UserTableRenderers.ActionCellRenderer());
+
+                // Column widths
+                userTable.getColumnModel().getColumn(0).setPreferredWidth(240);
+                userTable.getColumnModel().getColumn(1).setPreferredWidth(140);
+                userTable.getColumnModel().getColumn(2).setPreferredWidth(110);
+                userTable.getColumnModel().getColumn(3).setPreferredWidth(130);
+                userTable.getColumnModel().getColumn(4).setPreferredWidth(130);
+                userTable.getColumnModel().getColumn(5).setPreferredWidth(90);
 
                 JScrollPane scrollPane = new JScrollPane(userTable);
-                scrollPane.setBorder(BorderFactory.createEmptyBorder());
-                scrollPane.getViewport().setBackground(Color.WHITE);
+                scrollPane.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(226, 232, 240)));
+                scrollPane.getViewport().setBackground(ROW_ODD);
+                scrollPane.setBackground(Color.WHITE);
 
-                panel.add(searchContainer, BorderLayout.NORTH);
-
-                JPanel centerPanel = new JPanel(new BorderLayout());
-                centerPanel.setBackground(Color.WHITE);
-                centerPanel.add(tableHeader, BorderLayout.NORTH);
-                centerPanel.add(scrollPane, BorderLayout.CENTER);
-
-                panel.add(centerPanel, BorderLayout.CENTER);
+                card.add(scrollPane, BorderLayout.CENTER);
 
                 ShadowPanel shadowWrapper = new ShadowPanel();
-                shadowWrapper.add(panel);
-                return shadowWrapper;
+                shadowWrapper.add(card);
+                wrapper.add(shadowWrapper, BorderLayout.CENTER);
+
+                return wrapper;
         }
 
         private JPanel createPermissionsPanel() {
@@ -286,7 +448,8 @@ public class UserManagementPanel extends JPanel {
                 return shadow;
         }
 
-        private JPanel createRoleCard(String roleName, String icon, String[] permissions, Color iconBg, Color iconFg) {
+        private JPanel createRoleCard(String roleName, String iconType, String[] permissions, Color iconBg,
+                        Color iconFg) {
                 JPanel card = new JPanel() {
                         @Override
                         protected void paintComponent(Graphics g) {
@@ -301,22 +464,38 @@ public class UserManagementPanel extends JPanel {
                 card.setBackground(Color.WHITE);
                 card.setBorder(new EmptyBorder(25, 25, 25, 25));
 
-                JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
+                JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 0));
                 headerPanel.setOpaque(false);
+                headerPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-                JLabel iconLabel = new JLabel(icon);
-                iconLabel.setFont(new Font("Segoe UI", Font.PLAIN, 18));
-                iconLabel.setForeground(iconFg);
+                // Load Icon
+                JLabel iconLabel = new JLabel();
+                try {
+                        String iconPath = iconType.equals("ADMIN") ? "/src/resources/images/administrator.png"
+                                        : "/src/resources/images/staff.png";
+                        java.net.URL imgUrl = getClass().getResource(iconPath);
+                        if (imgUrl != null) {
+                                ImageIcon original = new ImageIcon(imgUrl);
+                                Image scaled = original.getImage().getScaledInstance(32, 32, Image.SCALE_SMOOTH);
+                                iconLabel.setIcon(new ImageIcon(scaled));
+                        } else {
+                                iconLabel.setText(iconType);
+                                iconLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+                                iconLabel.setForeground(iconFg);
+                        }
+                } catch (Exception e) {
+                        iconLabel.setText(iconType);
+                }
 
                 JLabel nameLabel = new JLabel(roleName);
-                nameLabel.setFont(new Font("SansSerif", Font.BOLD, 15));
+                nameLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
                 nameLabel.setForeground(UIStyle.TEXT_PRIMARY);
 
                 headerPanel.add(iconLabel);
                 headerPanel.add(nameLabel);
 
                 card.add(headerPanel);
-                card.add(Box.createVerticalStrut(15));
+                card.add(Box.createVerticalStrut(20));
 
                 for (String permission : permissions) {
                         JLabel permLabel = new JLabel(" •  " + permission);
@@ -324,7 +503,7 @@ public class UserManagementPanel extends JPanel {
                         permLabel.setForeground(new Color(75, 85, 99));
                         permLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
                         card.add(permLabel);
-                        card.add(Box.createVerticalStrut(8));
+                        card.add(Box.createVerticalStrut(10));
                 }
 
                 return card;
@@ -536,10 +715,33 @@ public class UserManagementPanel extends JPanel {
                                                         g2.drawLine(w / 2, h * 3 / 4, w * 3 / 4, h / 4);
                                                 }
                                         } else if (iconType.equals("ADMIN")) {
-                                                g2.drawRoundRect(w / 4, h / 4, w / 2, h / 2, 5, 5);
+                                                try {
+                                                        java.net.URL imgUrl = getClass().getResource(
+                                                                        "/src/resources/images/administrator.png");
+                                                        if (imgUrl != null) {
+                                                                Image img = new ImageIcon(imgUrl).getImage();
+                                                                g2.drawImage(img, w / 4, h / 4, w / 2, h / 2, null);
+                                                        } else {
+                                                                g2.drawRoundRect(w / 4, h / 4, w / 2, h / 2, 5, 5);
+                                                        }
+                                                } catch (Exception e) {
+                                                        g2.drawRoundRect(w / 4, h / 4, w / 2, h / 2, 5, 5);
+                                                }
                                         } else { // STAFF
-                                                g2.fillOval(w / 3, h / 4, w / 3, h / 3);
-                                                g2.fillArc(w / 4, h / 2, w / 2, h / 2, 0, 180);
+                                                try {
+                                                        java.net.URL imgUrl = getClass().getResource(
+                                                                        "/src/resources/images/staff.png");
+                                                        if (imgUrl != null) {
+                                                                Image img = new ImageIcon(imgUrl).getImage();
+                                                                g2.drawImage(img, w / 4, h / 4, w / 2, h / 2, null);
+                                                        } else {
+                                                                g2.fillOval(w / 3, h / 4, w / 3, h / 3);
+                                                                g2.fillArc(w / 4, h / 2, w / 2, h / 2, 0, 180);
+                                                        }
+                                                } catch (Exception e) {
+                                                        g2.fillOval(w / 3, h / 4, w / 3, h / 3);
+                                                        g2.fillArc(w / 4, h / 2, w / 2, h / 2, 0, 180);
+                                                }
                                         }
                                         g2.dispose();
                                 }

@@ -73,13 +73,14 @@ public class LaundryReportsSystem extends JPanel {
         ShadowPanel cardShadow = new ShadowPanel();
         cardShadow.setLayout(new BorderLayout());
 
-        tablePanel = new JPanel(new BorderLayout(0, 15));
+        tablePanel = new JPanel(new BorderLayout(0, 0));
         tablePanel.setBackground(Color.WHITE);
-        tablePanel.setBorder(BorderFactory.createEmptyBorder(10, 30, 30, 30));
+        tablePanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
 
         cardTitle = new JLabel("");
-        cardTitle.setFont(UIStyle.SUBTITLE);
+        cardTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
         cardTitle.setForeground(UIStyle.TEXT_PRIMARY);
+        cardTitle.setBorder(new javax.swing.border.EmptyBorder(16, 20, 12, 20));
         cardTitle.setVisible(false);
         tablePanel.add(cardTitle, BorderLayout.NORTH);
 
@@ -283,106 +284,152 @@ public class LaundryReportsSystem extends JPanel {
     }
 
     private JScrollPane createReportTable() {
-        reportTable = new JTable(tableModel);
-        reportTable.setRowHeight(60);
-        reportTable.setFont(UIStyle.REGULAR);
-        reportTable.setForeground(UIStyle.TEXT_PRIMARY);
+        reportTable = new JTable(tableModel) {
+            @Override
+            public boolean isCellEditable(int row, int col) {
+                // Keep Transaction History delete column editable
+                return activeTab.equals("Transaction History") && col == 6;
+            }
+        };
+
+        // ── Table appearance ─────────────────────────────────────────────────
+        reportTable.setRowHeight(52);
+        reportTable.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        reportTable.setForeground(new Color(55, 65, 81));
         reportTable.setShowGrid(false);
         reportTable.setIntercellSpacing(new Dimension(0, 0));
         reportTable.setFillsViewportHeight(true);
         reportTable.setBackground(Color.WHITE);
         reportTable.setBorder(null);
+        reportTable.setSelectionBackground(new Color(239, 246, 255));
 
-        // Header Styling
-        JTableHeader header = reportTable.getTableHeader();
-        header.setFont(new Font("SansSerif", Font.BOLD, 12));
-        header.setForeground(UIStyle.TEXT_SECONDARY);
-        header.setBackground(Color.WHITE);
-        header.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(241, 245, 249)));
+        // ── Header ────────────────────────────────────────────────────────────
+        JTableHeader th = reportTable.getTableHeader();
+        th.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        th.setForeground(new Color(100, 116, 139));
+        th.setBackground(new Color(248, 250, 252));
+        th.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(226, 232, 240)));
+        th.setPreferredSize(new Dimension(0, 38));
+        th.setReorderingAllowed(false);
 
-        header.setDefaultRenderer(new DefaultTableCellRenderer() {
+        // Column 0 LEFT, all others CENTER
+        DefaultTableCellRenderer hLeft = new DefaultTableCellRenderer();
+        hLeft.setHorizontalAlignment(JLabel.LEFT);
+        hLeft.setBackground(new Color(248, 250, 252));
+        hLeft.setForeground(new Color(30, 41, 59));
+        hLeft.setBorder(new javax.swing.border.EmptyBorder(0, 12, 0, 12));
+        hLeft.setFont(new Font("Segoe UI", Font.BOLD, 11));
+
+        DefaultTableCellRenderer hCenter = new DefaultTableCellRenderer();
+        hCenter.setHorizontalAlignment(JLabel.CENTER);
+        hCenter.setBackground(new Color(248, 250, 252));
+        hCenter.setForeground(new Color(30, 41, 59));
+        hCenter.setBorder(new javax.swing.border.EmptyBorder(0, 0, 0, 0));
+        hCenter.setFont(new Font("Segoe UI", Font.BOLD, 11));
+
+        th.getColumnModel().getColumn(0).setHeaderRenderer(hLeft);
+        for (int i = 1; i < reportTable.getColumnCount(); i++) {
+            th.getColumnModel().getColumn(i).setHeaderRenderer(hCenter);
+        }
+
+        // ── Default cell renderer — alternating rows + LEFT padding + CENTER ─
+        DefaultTableCellRenderer cellLeft = new DefaultTableCellRenderer() {
             @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
-                    boolean hasFocus, int row, int column) {
-                JLabel lbl = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row,
-                        column);
-                lbl.setBorder(BorderFactory.createEmptyBorder(10, 5, 10, 5));
-                lbl.setBackground(Color.WHITE);
-                lbl.setFont(new Font("SansSerif", Font.BOLD, 13)); // Increased font size and kept BOLD
-                lbl.setForeground(UIStyle.TEXT_PRIMARY); // Darker color for prominence
-                return lbl;
+            public Component getTableCellRendererComponent(JTable t, Object v,
+                    boolean sel, boolean foc, int row, int col) {
+                super.getTableCellRendererComponent(t, v, sel, foc, row, col);
+                setHorizontalAlignment(col == 0 ? JLabel.LEFT : JLabel.CENTER);
+                setBorder(new javax.swing.border.EmptyBorder(0, col == 0 ? 12 : 0, 0, 0));
+                setBackground(rowBg(t, sel, row));
+                setForeground(new Color(55, 65, 81));
+                setOpaque(true);
+                return this;
             }
-        });
+        };
 
-        // Set Renderers based on Tab
+        int cols = reportTable.getColumnCount();
+        // Apply default renderer first, then override last col if needed
+        for (int i = 0; i < cols; i++) {
+            reportTable.getColumnModel().getColumn(i).setCellRenderer(cellLeft);
+        }
+
+        // ── Special column renderers ──────────────────────────────────────────
         if (activeTab.equals("Profitability")) {
             reportTable.getColumnModel().getColumn(6).setCellRenderer(new StatusCellRenderer());
         } else if (activeTab.equals("Cashier Performance")) {
             reportTable.getColumnModel().getColumn(4).setCellRenderer(new StatusCellRenderer());
-        } else {
+        } else if (activeTab.equals("Transaction History")) {
             reportTable.getColumnModel().getColumn(6).setCellRenderer(new TableButtonRenderer());
             reportTable.getColumnModel().getColumn(6).setCellEditor(new TableButtonEditor(new JCheckBox()));
         }
 
-        // Alignment
-        DefaultTableCellRenderer leftRenderer = new DefaultTableCellRenderer();
-        leftRenderer.setHorizontalAlignment(JLabel.LEFT);
-        int colCount = reportTable.getColumnCount();
-        for (int i = 0; i < colCount; i++) {
-            if (activeTab.equals("Profitability") || activeTab.equals("Cashier Performance") || i < 6) {
-                reportTable.getColumnModel().getColumn(i).setCellRenderer(leftRenderer);
-            }
-        }
-
-        if (activeTab.equals("Profitability")) {
-            reportTable.getColumnModel().getColumn(6).setCellRenderer(new StatusCellRenderer());
-        } else if (activeTab.equals("Cashier Performance")) {
-            reportTable.getColumnModel().getColumn(4).setCellRenderer(new StatusCellRenderer());
-        }
-
         JScrollPane scroll = new JScrollPane(reportTable);
-        scroll.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
-        scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
+        scroll.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(226, 232, 240)));
+        scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        scroll.getViewport().setBackground(Color.WHITE);
+        scroll.getViewport().setBackground(new Color(248, 250, 252));
         scroll.setBackground(Color.WHITE);
 
         return scroll;
     }
 
-    // Status Badge Renderer
-    class StatusCellRenderer extends DefaultTableCellRenderer {
-        @Override
-        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus,
-                int row, int column) {
-            JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 18));
-            panel.setBackground(Color.WHITE);
+    /** Helper for alternating row background */
+    private Color rowBg(JTable t, boolean selected, int row) {
+        if (selected)
+            return new Color(239, 246, 255);
+        return row % 2 == 0 ? Color.WHITE : new Color(248, 250, 252);
+    }
 
-            JLabel label = new JLabel(value.toString()) {
+    // Status Badge Renderer — pill-painted JLabel, centred, alternating rows
+    class StatusCellRenderer extends DefaultTableCellRenderer {
+
+        StatusCellRenderer() {
+            setOpaque(false);
+            setFont(new Font("Segoe UI", Font.BOLD, 11));
+            setHorizontalAlignment(SwingConstants.CENTER);
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+                boolean hasFocus, int row, int column) {
+
+            final Color bg;
+            final Color fg = Color.WHITE;
+            String txt = value == null ? "" : value.toString();
+
+            if (txt.equals("Excellent") || txt.equals("Good")) {
+                bg = new Color(34, 197, 94); // green
+            } else {
+                bg = new Color(239, 68, 68); // red
+            }
+
+            // Wrapper so we can vertically centre + set row background
+            JPanel wrapper = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+            wrapper.setOpaque(true);
+            wrapper.setBackground(rowBg(table, isSelected, row));
+
+            JLabel pill = new JLabel(txt, SwingConstants.CENTER) {
                 @Override
                 protected void paintComponent(Graphics g) {
                     Graphics2D g2 = (Graphics2D) g.create();
                     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                     g2.setColor(getBackground());
-                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 15, 15);
-                    super.paintComponent(g);
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), getHeight(), getHeight());
                     g2.dispose();
+                    super.paintComponent(g);
                 }
             };
+            pill.setOpaque(false);
+            pill.setFont(new Font("Segoe UI", Font.BOLD, 11));
+            pill.setForeground(fg);
+            pill.setBackground(bg);
+            pill.setBorder(new javax.swing.border.EmptyBorder(4, 14, 4, 14));
 
-            label.setFont(new Font("SansSerif", Font.BOLD, 10));
-            label.setForeground(Color.WHITE);
-            label.setPreferredSize(new Dimension(85, 24));
-            label.setHorizontalAlignment(SwingConstants.CENTER);
+            int vGap = Math.max(0, (table.getRowHeight(row) - pill.getPreferredSize().height) / 2);
+            ((FlowLayout) wrapper.getLayout()).setVgap(vGap);
 
-            if (value.equals("Excellent") || value.equals("Good")) {
-                label.setBackground(new Color(59, 130, 246));
-            } else {
-                label.setBackground(new Color(239, 68, 68));
-            }
-
-            panel.add(label);
-            return panel;
+            wrapper.add(pill);
+            return wrapper;
         }
     }
 
@@ -391,7 +438,7 @@ public class LaundryReportsSystem extends JPanel {
             setContentAreaFilled(false);
             setOpaque(false);
             setBorder(null);
-            setFont(new Font("SansSerif", Font.BOLD, 11));
+            setFont(new Font("Segoe UI", Font.BOLD, 11));
             setForeground(Color.WHITE);
         }
 
@@ -406,14 +453,16 @@ public class LaundryReportsSystem extends JPanel {
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            int pad = 10;
+            int h = 28;
+            int y = (getHeight() - h) / 2;
             g2.setColor(UIStyle.DANGER);
-            g2.fillRoundRect(10, 15, getWidth() - 20, getHeight() - 30, 20, 20);
-
+            g2.fillRoundRect(pad, y, getWidth() - pad * 2, h, h, h);
             FontMetrics fm = g2.getFontMetrics();
             int x = (getWidth() - fm.stringWidth(getText())) / 2;
-            int y = (getHeight() + fm.getAscent() - fm.getDescent()) / 2;
+            int ty = y + (h + fm.getAscent() - fm.getDescent()) / 2;
             g2.setColor(Color.WHITE);
-            g2.drawString(getText(), x, y);
+            g2.drawString(getText(), x, ty);
             g2.dispose();
         }
     }
