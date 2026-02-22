@@ -1,7 +1,9 @@
 package src.ui.panels.dashboardPanel;
+
 import java.awt.*;
 import javax.swing.*;
 import javax.swing.border.*;
+import src.util.components.Scrollbar;
 
 public class DashboardPanel extends JPanel {
 
@@ -306,6 +308,7 @@ public class DashboardPanel extends JPanel {
         table.getTableHeader().setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(230, 230, 230)));
 
         JScrollPane scrollPane = new JScrollPane(table);
+        scrollPane.getVerticalScrollBar().setUI(new Scrollbar());
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
         panel.add(scrollPane, BorderLayout.CENTER);
 

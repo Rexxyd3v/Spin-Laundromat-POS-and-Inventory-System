@@ -5,6 +5,7 @@ import javax.swing.*;
 import javax.swing.table.*;
 import src.util.components.ShadowPanel;
 import src.util.config.UIStyle;
+import src.util.components.Scrollbar;
 
 public class LaundryReportsSystem extends JPanel {
     private String activeTab = "Profitability";
@@ -364,6 +365,7 @@ public class LaundryReportsSystem extends JPanel {
         }
 
         JScrollPane scroll = new JScrollPane(reportTable);
+        scroll.getVerticalScrollBar().setUI(new Scrollbar());
         scroll.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(226, 232, 240)));
         scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);

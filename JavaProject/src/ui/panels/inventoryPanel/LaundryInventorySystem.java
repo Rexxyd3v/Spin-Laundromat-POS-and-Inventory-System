@@ -1,8 +1,15 @@
 package src.ui.panels.inventoryPanel;
+
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
+import javax.swing.border.*;
+import javax.swing.plaf.basic.BasicArrowButton;
+import javax.swing.plaf.basic.BasicComboBoxUI;
 import javax.swing.table.*;
+import src.util.components.Scrollbar;
+import src.util.components.ShadowPanel;
+import src.util.config.UIStyle;
 
 public class LaundryInventorySystem extends JPanel {
 
@@ -13,287 +20,410 @@ public class LaundryInventorySystem extends JPanel {
     private JComboBox<String> stockLevelCombo;
     private JTextField searchField;
 
+    private static final Color ORANGE_ACCENT = new Color(245, 158, 11);
+    private static final Color GREEN_BTN = new Color(34, 197, 94);
+    private static final Color BLUE_BTN = new Color(59, 130, 246);
+    private static final Color RED_BTN = new Color(239, 68, 68);
+
     public LaundryInventorySystem() {
-        initComponents();
-    }
-
-    private void initComponents() {
-        // Main container
         setLayout(new BorderLayout());
-        setBackground(new Color(220, 250, 250));
+        setBackground(UIStyle.BACKGROUND);
 
-        // Main content area
-        JPanel mainPanel = createMainPanel();
-        add(mainPanel, BorderLayout.CENTER);
+        JPanel body = buildBody();
+        JScrollPane scroll = new JScrollPane(body);
+        scroll.setBorder(null);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scroll.getVerticalScrollBar().setUI(new Scrollbar());
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+        add(scroll, BorderLayout.CENTER);
     }
 
-    private JPanel createMainPanel() {
-        JPanel mainPanel = new JPanel(new BorderLayout());
-        mainPanel.setBackground(new Color(220, 250, 250));
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+    private JPanel buildBody() {
+        JPanel p = new JPanel(new GridBagLayout());
+        p.setOpaque(false);
+        p.setBorder(new EmptyBorder(30, 40, 32, 40));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        gbc.insets = new Insets(0, 0, 30, 0);
 
         // Header
-        JPanel headerPanel = createHeaderPanel();
-        mainPanel.add(headerPanel, BorderLayout.NORTH);
+        gbc.gridy = 0;
+        p.add(buildPageHeader(), gbc);
 
-        // Content
-        JPanel contentPanel = createContentPanel();
-        mainPanel.add(contentPanel, BorderLayout.CENTER);
+        // Stat Cards
+        gbc.gridy = 1;
+        gbc.insets = new Insets(0, 0, 20, 0);
+        p.add(buildStatsPanel(), gbc);
 
-        return mainPanel;
+        // Filter Row
+        gbc.gridy = 2;
+        gbc.insets = new Insets(0, 0, 20, 0);
+        p.add(buildTableFilterRow(), gbc);
+
+        // Inventory List Card
+        gbc.gridy = 3;
+        gbc.weighty = 1.0;
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.insets = new Insets(0, 0, 0, 0);
+        p.add(buildInventoryListCard(), gbc);
+
+        return p;
     }
 
-    private JPanel createHeaderPanel() {
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(new Color(220, 250, 250));
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 20, 0));
+    private JPanel buildPageHeader() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setOpaque(false);
 
-        // Title section
-        JPanel titleSection = new JPanel();
-        titleSection.setLayout(new BoxLayout(titleSection, BoxLayout.Y_AXIS));
-        titleSection.setBackground(new Color(220, 250, 250));
+        JPanel titlePanel = new JPanel();
+        titlePanel.setLayout(new BoxLayout(titlePanel, BoxLayout.Y_AXIS));
+        titlePanel.setOpaque(false);
 
-        JLabel title = new JLabel("Supplies & Equipment Inventory");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        JLabel titleLabel = new JLabel("Supplies & Equipment Inventory");
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 36));
+        titleLabel.setForeground(UIStyle.TEXT_PRIMARY);
 
-        JLabel subtitle = new JLabel("Manage laundry supplies and stock levels");
-        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        subtitle.setForeground(Color.GRAY);
+        JLabel subtitleLabel = new JLabel("Manage laundry supplies and stock levels");
+        subtitleLabel.setFont(UIStyle.REGULAR);
+        subtitleLabel.setForeground(UIStyle.TEXT_SECONDARY);
 
-        titleSection.add(title);
-        titleSection.add(subtitle);
+        titlePanel.add(titleLabel);
+        titlePanel.add(Box.createVerticalStrut(8));
+        titlePanel.add(subtitleLabel);
 
-        // Button
-        JButton stocksButton = new JButton("Go to Inventory Stocks");
-        stocksButton.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        stocksButton.setBackground(new Color(40, 40, 40));
-        stocksButton.setForeground(Color.WHITE);
-        stocksButton.setFocusPainted(false);
-        stocksButton.setBorderPainted(false);
-        stocksButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        stocksButton.setPreferredSize(new Dimension(180, 35));
-        stocksButton.addActionListener(e -> {
-            // Open the StockManagementPanel as a dialog
-            JDialog stocksDialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(LaundryInventorySystem.this),
-                    "Inventory Stocks Management", false);
-            stocksDialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-            stocksDialog.setUndecorated(false); // Ensure window controls are visible
-            stocksDialog.setResizable(true); // Enable resize functionality
-            stocksDialog.setSize(1200, 800);
-            stocksDialog.setMinimumSize(new Dimension(900, 600));
-            stocksDialog.setLocationRelativeTo(SwingUtilities.getWindowAncestor(LaundryInventorySystem.this));
+        // Wrap button to prevent stretching
+        JPanel btnWrapper = new JPanel();
+        btnWrapper.setLayout(new BoxLayout(btnWrapper, BoxLayout.Y_AXIS));
+        btnWrapper.setOpaque(false);
+        btnWrapper.add(Box.createVerticalGlue());
+        btnWrapper.add(buildGoToStocksButton());
+        btnWrapper.add(Box.createVerticalGlue());
 
-            StockManagementPanel stockPanel = new StockManagementPanel();
-            stocksDialog.add(stockPanel, BorderLayout.CENTER);
-            stocksDialog.setVisible(true);
+        panel.add(titlePanel, BorderLayout.WEST);
+        panel.add(btnWrapper, BorderLayout.EAST);
+        return panel;
+    }
+
+    private JButton buildGoToStocksButton() {
+        JButton btn = new JButton("Go to Inventory Stocks") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(30, 41, 59));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), getHeight(), getHeight());
+                super.paintComponent(g2);
+                g2.dispose();
+            }
+        };
+        btn.setFont(new Font("SansSerif", Font.BOLD, 12));
+        btn.setForeground(Color.WHITE);
+        btn.setPreferredSize(new Dimension(185, 34));
+        btn.setMaximumSize(new Dimension(185, 34));
+        btn.setFocusPainted(false);
+        btn.setBorderPainted(false);
+        btn.setContentAreaFilled(false);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.addActionListener(e -> {
+            JDialog dlg = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Inventory Stocks Management",
+                    false);
+            dlg.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+            dlg.setSize(1200, 800);
+            dlg.setLocationRelativeTo(SwingUtilities.getWindowAncestor(this));
+            dlg.add(new StockManagementPanel(), BorderLayout.CENTER);
+            dlg.setVisible(true);
+        });
+        return btn;
+    }
+
+    private JPanel buildStatsPanel() {
+        JPanel panel = new JPanel(new GridLayout(1, 3, 30, 0));
+        panel.setOpaque(false);
+        panel.setPreferredSize(new Dimension(0, 140));
+
+        panel.add(new StatCard("Total Products", "18", UIStyle.TEXT_PRIMARY));
+        panel.add(new StatCard("Low Stocks", "3", ORANGE_ACCENT));
+        panel.add(new StatCard("Inventory Value", "₱234,200", UIStyle.PRIMARY));
+
+        return panel;
+    }
+
+    private JPanel buildTableFilterRow() {
+        JPanel wrapper = new JPanel(new BorderLayout(12, 0));
+        wrapper.setOpaque(false);
+
+        // Search Pill (Identical to User Panel)
+        JPanel searchPill = new JPanel(new BorderLayout(10, 0)) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Color.WHITE);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 50, 50);
+                g2.setColor(new Color(226, 232, 240));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 50, 50);
+                g2.dispose();
+            }
+        };
+        searchPill.setOpaque(false);
+        searchPill.setBorder(new EmptyBorder(9, 20, 9, 20));
+
+        JLabel searchIcon = new JLabel();
+        try {
+            java.net.URL imgUrl = getClass().getResource("/src/resources/images/search.png");
+            if (imgUrl != null) {
+                ImageIcon icon = new ImageIcon(imgUrl);
+                Image scaled = icon.getImage().getScaledInstance(16, 16, Image.SCALE_SMOOTH);
+                searchIcon.setIcon(new ImageIcon(scaled));
+            } else {
+                searchIcon.setText("🔍");
+            }
+        } catch (Exception e) {
+            searchIcon.setText("🔍");
+        }
+
+        searchField = new JTextField("Search products...");
+        searchField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        searchField.setForeground(UIStyle.TEXT_SECONDARY);
+        searchField.setBorder(null);
+        searchField.setOpaque(false);
+        searchField.setBackground(new Color(0, 0, 0, 0));
+        searchField.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                if (searchField.getText().equals("Search products...")) {
+                    searchField.setText("");
+                    searchField.setForeground(UIStyle.TEXT_PRIMARY);
+                }
+            }
+
+            @Override
+            public void focusLost(FocusEvent e) {
+                if (searchField.getText().isEmpty()) {
+                    searchField.setText("Search products...");
+                    searchField.setForeground(UIStyle.TEXT_SECONDARY);
+                }
+            }
         });
 
-        headerPanel.add(titleSection, BorderLayout.WEST);
-        headerPanel.add(stocksButton, BorderLayout.EAST);
+        searchPill.add(searchIcon, BorderLayout.WEST);
+        searchPill.add(searchField, BorderLayout.CENTER);
 
-        return headerPanel;
+        // Filter Panel
+        JPanel filters = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
+        filters.setOpaque(false);
+
+        filters.add(createPillFilter(categoryCombo = new JComboBox<>(new String[] { "All Categories" }), 150));
+        filters.add(createPillFilter(supplierCombo = new JComboBox<>(new String[] { "All Suppliers" }), 150));
+        filters.add(createPillFilter(stockLevelCombo = new JComboBox<>(new String[] { "All Stock Levels" }), 150));
+
+        wrapper.add(searchPill, BorderLayout.CENTER);
+        wrapper.add(filters, BorderLayout.EAST);
+        return wrapper;
     }
 
-    private JPanel createContentPanel() {
-        JPanel contentPanel = new JPanel(new BorderLayout(0, 15));
-        contentPanel.setBackground(new Color(220, 250, 250));
+    private JPanel createPillFilter(JComboBox<String> combo, int width) {
+        JPanel pill = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Color.WHITE);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 50, 50);
+                g2.setColor(new Color(226, 232, 240));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 50, 50);
+                g2.dispose();
+            }
+        };
+        pill.setOpaque(false);
+        pill.setPreferredSize(new Dimension(width, 42));
+        pill.setBorder(new EmptyBorder(6, 16, 6, 16));
 
-        // Stats cards
-        JPanel statsPanel = createStatsPanel();
-        contentPanel.add(statsPanel, BorderLayout.NORTH);
+        combo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        combo.setForeground(UIStyle.TEXT_PRIMARY);
+        combo.setBackground(Color.WHITE);
+        combo.setBorder(null);
+        combo.setOpaque(false);
+        combo.setFocusable(false);
+        combo.setUI(new BasicComboBoxUI() {
+            @Override
+            protected JButton createArrowButton() {
+                JButton btn = new BasicArrowButton(BasicArrowButton.SOUTH, Color.WHITE, Color.WHITE,
+                        new Color(100, 116, 139), Color.WHITE);
+                btn.setBorder(BorderFactory.createEmptyBorder());
+                btn.setBackground(Color.WHITE);
+                btn.setOpaque(false);
+                return btn;
+            }
 
-        // Inventory section
-        JPanel inventorySection = createInventorySection();
-        contentPanel.add(inventorySection, BorderLayout.CENTER);
+            @Override
+            public void paintCurrentValueBackground(Graphics g, Rectangle bounds, boolean hasFocus) {
+                // Background painted by pill
+            }
+        });
 
-        return contentPanel;
+        pill.add(combo, BorderLayout.CENTER);
+        return pill;
     }
 
-    private JPanel createStatsPanel() {
-        JPanel statsPanel = new JPanel(new GridLayout(1, 3, 15, 0));
-        statsPanel.setBackground(new Color(220, 250, 250));
-        statsPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
-        statsPanel.setPreferredSize(new Dimension(0, 100));
-
-        // Total Products Card
-        JPanel totalCard = createStatCard("Total Products", "18", "�");
-
-        // Low Stocks Card
-        JPanel lowStockCard = createStatCard("Low Stocks", "3", "⚠️");
-
-        // Inventory Value Card
-        JPanel valueCard = createStatCard("Inventory Value", "₱234,200.00", "₱");
-
-        statsPanel.add(totalCard);
-        statsPanel.add(lowStockCard);
-        statsPanel.add(valueCard);
-
-        return statsPanel;
-    }
-
-    private JPanel createStatCard(String title, String value, String icon) {
+    private JPanel buildInventoryListCard() {
         JPanel card = new JPanel(new BorderLayout());
         card.setBackground(Color.WHITE);
         card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(230, 230, 230), 1),
-                BorderFactory.createEmptyBorder(20, 20, 20, 20)));
+                BorderFactory.createLineBorder(new Color(226, 232, 240), 1),
+                new EmptyBorder(24, 24, 24, 24)));
 
-        JPanel leftPanel = new JPanel();
-        leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
-        leftPanel.setBackground(Color.WHITE);
+        JLabel listTitle = new JLabel("Products List");
+        listTitle.setFont(new Font("Segoe UI", Font.BOLD, 17));
+        listTitle.setForeground(UIStyle.TEXT_PRIMARY);
+        listTitle.setBorder(new EmptyBorder(0, 0, 16, 0));
+        card.add(listTitle, BorderLayout.NORTH);
 
-        JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        titleLabel.setForeground(Color.GRAY);
-
-        JLabel valueLabel = new JLabel(value);
-        valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 24));
-
-        leftPanel.add(titleLabel);
-        leftPanel.add(Box.createVerticalStrut(5));
-        leftPanel.add(valueLabel);
-
-        JLabel iconLabel = new JLabel(icon);
-        iconLabel.setFont(new Font("Segoe UI", Font.PLAIN, 24));
-
-        card.add(leftPanel, BorderLayout.CENTER);
-        card.add(iconLabel, BorderLayout.EAST);
-
-        return card;
-    }
-
-    private JPanel createInventorySection() {
-        JPanel section = new JPanel(new BorderLayout());
-        section.setBackground(Color.WHITE);
-        section.setBorder(BorderFactory.createLineBorder(new Color(230, 230, 230), 1));
-
-        // Filter panel
-        JPanel filterPanel = createFilterPanel();
-        section.add(filterPanel, BorderLayout.NORTH);
-
-        // Table
-        JPanel tablePanel = createTablePanel();
-        section.add(tablePanel, BorderLayout.CENTER);
-
-        // Action buttons
-        JPanel actionPanel = createActionPanel();
-        section.add(actionPanel, BorderLayout.SOUTH);
-
-        return section;
-    }
-
-    private JPanel createFilterPanel() {
-        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 15));
-        filterPanel.setBackground(Color.WHITE);
-        filterPanel.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(230, 230, 230)));
-
-        JLabel filterLabel = new JLabel("Filter");
-        filterLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-
-        searchField = new JTextField(20);
-        searchField.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        searchField.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(200, 200, 200), 1),
-                BorderFactory.createEmptyBorder(5, 10, 5, 10)));
-        searchField.setMinimumSize(new Dimension(180, 30));
-        searchField.setPreferredSize(new Dimension(200, 30));
-        searchField.setMaximumSize(new Dimension(250, 30));
-
-        categoryCombo = new JComboBox<>(new String[] { "All Categories" });
-        categoryCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        categoryCombo.setPreferredSize(new Dimension(150, 30));
-
-        supplierCombo = new JComboBox<>(new String[] { "All Suppliers" });
-        supplierCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        supplierCombo.setPreferredSize(new Dimension(150, 30));
-
-        stockLevelCombo = new JComboBox<>(new String[] { "All Stock Levels" });
-        stockLevelCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        stockLevelCombo.setPreferredSize(new Dimension(150, 30));
-
-        filterPanel.add(filterLabel);
-        filterPanel.add(searchField);
-        filterPanel.add(categoryCombo);
-        filterPanel.add(supplierCombo);
-        filterPanel.add(stockLevelCombo);
-
-        return filterPanel;
-    }
-
-    private JPanel createTablePanel() {
-        JPanel tablePanel = new JPanel(new BorderLayout());
-        tablePanel.setBackground(Color.WHITE);
-        tablePanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
-
-        JLabel tableTitle = new JLabel("Inventory List");
-        tableTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        tableTitle.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
-
-        // Create table
-        String[] columns = { "Product Code", "Product Name", "Category", "Supplier", "Quantity", "Unit", "Price",
-                "Total Value", "Stock Status" };
-        tableModel = new DefaultTableModel(columns, 0) {
+        String[] cols = { "Code", "Product Name", "Category", "Supplier", "Stock", "Unit", "Price", "Value", "Status" };
+        tableModel = new DefaultTableModel(cols, 0) {
             @Override
-            public boolean isCellEditable(int row, int column) {
+            public boolean isCellEditable(int r, int c) {
                 return false;
             }
         };
 
-        inventoryTable = new JTable(tableModel);
-        inventoryTable.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        inventoryTable.setRowHeight(40);
-        inventoryTable.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
-        inventoryTable.getTableHeader().setBackground(new Color(250, 250, 250));
-        inventoryTable.setSelectionBackground(new Color(33, 150, 243, 50));
-        inventoryTable.setGridColor(new Color(240, 240, 240));
-
-        JScrollPane scrollPane = new JScrollPane(inventoryTable);
-        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(230, 230, 230), 1));
-
-        tablePanel.add(tableTitle, BorderLayout.NORTH);
-        tablePanel.add(scrollPane, BorderLayout.CENTER);
-
-        return tablePanel;
-    }
-
-    private JPanel createActionPanel() {
-        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 15));
-        actionPanel.setBackground(Color.WHITE);
-        actionPanel.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(230, 230, 230)));
-
-        JButton addButton = createActionButton("+ Add Product", new Color(92, 184, 92));
-        JButton editButton = createActionButton("Edit Product", new Color(91, 192, 222));
-        JButton deleteButton = createActionButton("Delete Product", new Color(217, 83, 79));
-
-        actionPanel.add(addButton);
-        actionPanel.add(editButton);
-        actionPanel.add(deleteButton);
-
-        return actionPanel;
-    }
-
-    private JButton createActionButton(String text, Color color) {
-        JButton button = new JButton(text);
-        button.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        button.setBackground(color);
-        button.setForeground(Color.WHITE);
-        button.setFocusPainted(false);
-        button.setBorderPainted(false);
-        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        button.setPreferredSize(new Dimension(140, 35));
-
-        button.addMouseListener(new MouseAdapter() {
+        inventoryTable = new JTable(tableModel) {
             @Override
-            public void mouseEntered(MouseEvent e) {
-                button.setBackground(color.darker());
+            public Component prepareRenderer(TableCellRenderer renderer, int row, int col) {
+                Component c = super.prepareRenderer(renderer, row, col);
+                if (!isRowSelected(row)) {
+                    c.setBackground(row % 2 == 0 ? Color.WHITE : new Color(248, 250, 252));
+                } else {
+                    c.setBackground(new Color(239, 246, 255));
+                }
+                return c;
             }
+        };
+        inventoryTable.setRowHeight(62);
+        inventoryTable.setShowGrid(false); // No Grid Lines!
+        inventoryTable.setIntercellSpacing(new Dimension(0, 0));
+        inventoryTable.setFocusable(false);
+        inventoryTable.setBorder(null);
 
+        JTableHeader th = inventoryTable.getTableHeader();
+        th.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        th.setForeground(new Color(100, 116, 139));
+        th.setBackground(new Color(248, 250, 252));
+        th.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(226, 232, 240))); // Only bottom border
+        th.setPreferredSize(new Dimension(0, 38));
+        th.setReorderingAllowed(false);
+
+        // Header Renderers
+        DefaultTableCellRenderer headerRenderer = new DefaultTableCellRenderer();
+        headerRenderer.setHorizontalAlignment(JLabel.LEFT);
+        headerRenderer.setBackground(new Color(248, 250, 252));
+        headerRenderer.setForeground(new Color(30, 41, 59));
+        headerRenderer.setBorder(new EmptyBorder(0, 12, 0, 12));
+        headerRenderer.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        th.setDefaultRenderer(headerRenderer);
+
+        // Cell Renderer (Removes all "hati")
+        inventoryTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
             @Override
-            public void mouseExited(MouseEvent e) {
-                button.setBackground(color);
+            public Component getTableCellRendererComponent(JTable t, Object v, boolean s, boolean f, int r, int c) {
+                Component comp = super.getTableCellRendererComponent(t, v, s, f, r, c);
+                setBorder(new EmptyBorder(0, 12, 0, 12));
+                return comp;
             }
         });
 
-        return button;
+        JScrollPane scroll = new JScrollPane(inventoryTable);
+        scroll.getVerticalScrollBar().setUI(new Scrollbar());
+        scroll.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(226, 232, 240))); // Top border for table
+                                                                                                 // body
+        scroll.getViewport().setBackground(Color.WHITE);
+        scroll.setPreferredSize(new Dimension(0, 450));
+
+        card.add(scroll, BorderLayout.CENTER);
+        card.add(buildActionPanel(), BorderLayout.SOUTH);
+
+        ShadowPanel shadow = new ShadowPanel();
+        shadow.add(card);
+        return shadow;
+    }
+
+    private JPanel buildActionPanel() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 12));
+        panel.setOpaque(false);
+        panel.add(buildActionButton("+ Add Product", GREEN_BTN));
+        panel.add(buildActionButton("Edit", BLUE_BTN));
+        panel.add(buildActionButton("Delete", RED_BTN));
+        return panel;
+    }
+
+    private JButton buildActionButton(String text, Color color) {
+        JButton btn = new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getModel().isRollover() ? color.darker() : color);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
+                g2.setColor(Color.WHITE);
+                g2.setFont(getFont());
+                FontMetrics fm = g2.getFontMetrics();
+                int x = (getWidth() - fm.stringWidth(getText())) / 2;
+                int y = ((getHeight() - fm.getHeight()) / 2) + fm.getAscent();
+                g2.drawString(getText(), x, y);
+                g2.dispose();
+            }
+        };
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        btn.setPreferredSize(new Dimension(140, 38));
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(false);
+        btn.setFocusPainted(false);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        return btn;
+    }
+
+    // Inner class for Stat Card aligned with User Panel (Icons removed as
+    // requested)
+    private class StatCard extends JPanel {
+        public StatCard(String title, String value, Color valueColor) {
+            setLayout(new GridBagLayout());
+            setBackground(Color.WHITE);
+            setBorder(new EmptyBorder(25, 25, 25, 25));
+
+            GridBagConstraints gbc = new GridBagConstraints();
+            gbc.fill = GridBagConstraints.HORIZONTAL;
+            gbc.weightx = 1.0;
+
+            JLabel titleLabel = new JLabel(title);
+            titleLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
+            titleLabel.setForeground(UIStyle.TEXT_SECONDARY);
+            gbc.gridx = 0;
+            gbc.gridy = 0;
+            gbc.anchor = GridBagConstraints.NORTHWEST;
+            add(titleLabel, gbc);
+
+            JLabel valueLabel = new JLabel(value);
+            valueLabel.setFont(new Font("SansSerif", Font.BOLD, 36));
+            valueLabel.setForeground(valueColor);
+            gbc.gridx = 0;
+            gbc.gridy = 1;
+            gbc.insets = new Insets(10, 0, 0, 0);
+            gbc.anchor = GridBagConstraints.SOUTHWEST;
+            add(valueLabel, gbc);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(getBackground());
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 35, 35);
+            g2.dispose();
+        }
     }
 }

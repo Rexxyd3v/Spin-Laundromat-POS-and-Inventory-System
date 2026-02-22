@@ -12,6 +12,7 @@ import javax.swing.table.DefaultTableCellRenderer;
 import src.model.User;
 import src.util.config.UIStyle;
 import src.util.components.ShadowPanel;
+import src.util.components.Scrollbar;
 
 /**
  * User Management Panel integrated into main UI
@@ -54,6 +55,7 @@ public class UserManagementPanel extends JPanel {
                 mainScroll.getViewport().setOpaque(false); // Ensure viewport is transparent
                 mainScroll.setBackground(UIStyle.BACKGROUND);
                 mainScroll.getVerticalScrollBar().setUnitIncrement(16);
+                mainScroll.getVerticalScrollBar().setUI(new Scrollbar());
                 mainScroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
                 add(mainScroll, BorderLayout.CENTER);
@@ -198,10 +200,22 @@ public class UserManagementPanel extends JPanel {
                 searchPill.setBackground(Color.WHITE);
                 searchPill.setBorder(new EmptyBorder(9, 20, 9, 20));
 
-                // Search icon (unicode magnifier)
-                JLabel searchIcon = new JLabel("\uD83D\uDD0D");
-                searchIcon.setFont(new Font("SansSerif", Font.PLAIN, 14));
-                searchIcon.setForeground(new Color(148, 163, 184));
+                // Search icon
+                JLabel searchIcon = new JLabel();
+                try {
+                        java.net.URL imgUrl = getClass().getResource("/src/resources/images/search.png");
+                        if (imgUrl != null) {
+                                ImageIcon original = new ImageIcon(imgUrl);
+                                Image scaled = original.getImage().getScaledInstance(16, 16, Image.SCALE_SMOOTH);
+                                searchIcon.setIcon(new ImageIcon(scaled));
+                        } else {
+                                searchIcon.setText("\uD83D\uDD0D");
+                                searchIcon.setFont(new Font("SansSerif", Font.PLAIN, 14));
+                                searchIcon.setForeground(new Color(148, 163, 184));
+                        }
+                } catch (Exception e) {
+                        searchIcon.setText("\uD83D\uDD0D");
+                }
 
                 JTextField searchField = new JTextField();
                 searchField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
@@ -398,6 +412,7 @@ public class UserManagementPanel extends JPanel {
                 userTable.getColumnModel().getColumn(5).setPreferredWidth(90);
 
                 JScrollPane scrollPane = new JScrollPane(userTable);
+                scrollPane.getVerticalScrollBar().setUI(new Scrollbar());
                 scrollPane.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(226, 232, 240)));
                 scrollPane.getViewport().setBackground(ROW_ODD);
                 scrollPane.setBackground(Color.WHITE);

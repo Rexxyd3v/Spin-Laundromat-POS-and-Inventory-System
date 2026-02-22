@@ -1,6 +1,9 @@
 package src.ui.panels.inventoryPanel;
+
 import javax.swing.*;
 import java.awt.*;
+import src.util.components.ShadowPanel;
+import src.util.components.Scrollbar;
 
 public class InventoryManagementPanel extends JPanel {
     private static final Color MAIN_BG = new Color(200, 240, 248);
@@ -31,6 +34,8 @@ public class InventoryManagementPanel extends JPanel {
 
         // Wrap in scroll pane for responsive behavior
         JScrollPane scrollPane = new JScrollPane(contentPanel);
+        scrollPane.getVerticalScrollBar().setUI(new Scrollbar());
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
         scrollPane.setBorder(null);
         scrollPane.setBackground(MAIN_BG);
         scrollPane.getViewport().setBackground(MAIN_BG);
@@ -40,13 +45,15 @@ public class InventoryManagementPanel extends JPanel {
     }
 
     private JPanel createCardPanel() {
+        ShadowPanel outerCard = new ShadowPanel();
+        outerCard.setLayout(new BorderLayout());
+        outerCard.setMaximumSize(new Dimension(650, 450));
+        outerCard.setAlignmentX(Component.CENTER_ALIGNMENT);
+
         JPanel cardPanel = new JPanel(new BorderLayout());
         cardPanel.setBackground(CARD_BG);
-        cardPanel.setMaximumSize(new Dimension(600, 400));
-        cardPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        cardPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(226, 232, 240), 1),
-                BorderFactory.createEmptyBorder(40, 40, 40, 40)));
+        cardPanel.setOpaque(false);
+        cardPanel.setBorder(BorderFactory.createEmptyBorder(40, 40, 40, 40));
 
         // Top section with icon and title
         JPanel topPanel = new JPanel();
@@ -111,7 +118,8 @@ public class InventoryManagementPanel extends JPanel {
 
         cardPanel.add(bottomPanel, BorderLayout.SOUTH);
 
-        return cardPanel;
+        outerCard.add(cardPanel);
+        return outerCard;
     }
 
     private void openInventoryStocks() {
@@ -151,7 +159,7 @@ public class InventoryManagementPanel extends JPanel {
                 }
 
                 g2.setColor(color);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 16, 16);
                 g2.setColor(fgColor);
                 g2.setFont(getFont());
 

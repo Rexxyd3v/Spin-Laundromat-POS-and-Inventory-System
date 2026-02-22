@@ -4,6 +4,7 @@ import src.util.components.ShadowPanel;
 import src.util.components.SidebarButton;
 import src.util.components.BrandIcons;
 import src.util.config.*;
+import src.util.components.Scrollbar;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
@@ -61,6 +62,7 @@ public class SettingsPanelPreview extends JPanel {
         initTabSections();
 
         scrollPane = new JScrollPane(mainContainer);
+        scrollPane.getVerticalScrollBar().setUI(new Scrollbar());
         scrollPane.setBorder(null);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
         scrollPane.setBackground(UIStyle.BACKGROUND);

@@ -3,88 +3,54 @@ package src.ui.panels.posPanel;
 import java.awt.*;
 import java.util.ArrayList;
 import javax.swing.*;
+import src.util.config.UIStyle;
+import src.util.components.ShadowPanel;
+import src.util.components.Scrollbar;
 
 public class LaundryPOS extends JPanel {
     private final ArrayList<Item> cart = new ArrayList<>();
     private JPanel cartPanel;
     private JLabel subtotalLabel, taxLabel, totalLabel;
-    private static final int PADDING = 30;
+    private static final int PADDING = 20;
 
     public LaundryPOS() {
-        setLayout(new BorderLayout());
-        setBackground(new Color(175, 238, 238));
+        setLayout(new GridBagLayout());
+        setBackground(UIStyle.BACKGROUND);
 
-        // Center content (scrollable for responsiveness)
+        GridBagConstraints gbc = new GridBagConstraints();
+
+        // Left Column: Menu (Adaptive/Scrollable)
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.weightx = 1.0;
+        gbc.weighty = 1.0;
+        gbc.fill = GridBagConstraints.BOTH;
+
         JScrollPane centerScroll = new JScrollPane(createCenter());
         centerScroll.setBorder(null);
-        centerScroll.setBackground(new Color(175, 238, 238));
-        centerScroll.getViewport().setBackground(new Color(175, 238, 238));
-        add(centerScroll, BorderLayout.CENTER);
+        centerScroll.setBackground(UIStyle.BACKGROUND);
+        centerScroll.getViewport().setBackground(UIStyle.BACKGROUND);
+        centerScroll.getVerticalScrollBar().setUnitIncrement(16);
+        centerScroll.getVerticalScrollBar().setUI(new Scrollbar());
+        centerScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        add(centerScroll, gbc);
+        centerScroll.setOpaque(false);
 
-        // Right panel (cart)
-        add(createCart(), BorderLayout.EAST);
+        // Right Column: Cart (Fixed Width)
+        gbc.gridx = 1;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.VERTICAL;
+        add(createCart(), gbc);
     }
 
     private JPanel createCenter() {
         JPanel panel = new JPanel();
-        panel.setBackground(new Color(175, 238, 238));
+        panel.setOpaque(false);
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBorder(BorderFactory.createEmptyBorder(PADDING, PADDING, PADDING, PADDING));
 
-        // Search
-        JPanel search = new JPanel();
-        search.setBackground(Color.WHITE);
-        search.setLayout(new BoxLayout(search, BoxLayout.Y_AXIS));
-        search.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
-        search.setMaximumSize(new Dimension(Integer.MAX_VALUE, 90));
-        search.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JLabel searchLabel = new JLabel("Service Search");
-        searchLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        searchLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        search.add(searchLabel);
-        search.add(Box.createVerticalStrut(10));
-
-        // Search field row with icon
-        JPanel searchRow = new JPanel(new BorderLayout(8, 0));
-        searchRow.setBackground(Color.WHITE);
-        searchRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-        searchRow.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(200, 200, 200), 1, true),
-            BorderFactory.createEmptyBorder(4, 8, 4, 8)
-        ));
-
-        JLabel iconLabel = new JLabel("\uD83D\uDD0D"); // 🔍 emoji
-        iconLabel.setFont(new Font("Arial", Font.PLAIN, 14));
-        iconLabel.setForeground(Color.GRAY);
-
-        JTextField searchField = new JTextField("Search services....");
-        searchField.setForeground(Color.GRAY);
-        searchField.setBorder(null);
-        searchField.setFont(new Font("Arial", Font.PLAIN, 13));
-        searchField.setBackground(Color.WHITE);
-
-        // Clear placeholder on focus
-        searchField.addFocusListener(new java.awt.event.FocusAdapter() {
-            public void focusGained(java.awt.event.FocusEvent e) {
-                if (searchField.getText().equals("Search services....")) {
-                    searchField.setText("");
-                    searchField.setForeground(Color.BLACK);
-                }
-            }
-            public void focusLost(java.awt.event.FocusEvent e) {
-                if (searchField.getText().isEmpty()) {
-                    searchField.setText("Search services....");
-                    searchField.setForeground(Color.GRAY);
-                }
-            }
-        });
-
-        searchRow.add(iconLabel, BorderLayout.WEST);
-        searchRow.add(searchField, BorderLayout.CENTER);
-        search.add(searchRow);
-
-        panel.add(search);
+        // Search Section
+        panel.add(createSearchSection());
         panel.add(Box.createVerticalStrut(25));
 
         // Services section
@@ -109,35 +75,97 @@ public class LaundryPOS extends JPanel {
         return panel;
     }
 
-    // Creates a white rounded section container with title + grid inside
-    private JPanel createSection(String title, String[][] items) {
-        JPanel section = new JPanel();
-        section.setLayout(new BoxLayout(section, BoxLayout.Y_AXIS));
-        section.setBackground(Color.WHITE);
-        section.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(220, 220, 220), 1, true),
-            BorderFactory.createEmptyBorder(20, 20, 20, 20)
-        ));
-        section.setAlignmentX(Component.LEFT_ALIGNMENT);
+    private JPanel createSearchSection() {
+        ShadowPanel searchCard = new ShadowPanel();
+        searchCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
 
-        section.add(createLabel(title));
-        section.add(Box.createVerticalStrut(15));
-        section.add(createGrid(items));
-        return section;
+        JPanel inner = new JPanel();
+        inner.setOpaque(false);
+        inner.setLayout(new BoxLayout(inner, BoxLayout.Y_AXIS));
+        inner.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+
+        JLabel searchLabel = new JLabel("Service Search");
+        searchLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        searchLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        searchLabel.setHorizontalAlignment(SwingConstants.LEFT);
+        inner.add(searchLabel);
+        inner.add(Box.createVerticalStrut(12));
+
+        // Pill search bar (Enlarged)
+        JPanel searchPill = new JPanel(new BorderLayout(12, 0)) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Color.WHITE);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
+                g2.setColor(new Color(226, 232, 240));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
+                g2.dispose();
+            }
+        };
+        searchPill.setOpaque(false);
+        searchPill.setMaximumSize(new Dimension(Integer.MAX_VALUE, 45));
+        searchPill.setPreferredSize(new Dimension(Integer.MAX_VALUE, 45));
+        searchPill.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 20));
+        searchPill.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        // Search icon
+        JLabel searchIcon = new JLabel();
+        try {
+            java.net.URL imgUrl = getClass().getResource("/src/resources/images/search.png");
+            if (imgUrl != null) {
+                ImageIcon original = new ImageIcon(imgUrl);
+                Image scaled = original.getImage().getScaledInstance(18, 18, Image.SCALE_SMOOTH);
+                searchIcon.setIcon(new ImageIcon(scaled));
+            } else {
+                searchIcon.setText("\uD83D\uDD0D");
+                searchIcon.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+                searchIcon.setForeground(new Color(148, 163, 184));
+            }
+        } catch (Exception e) {
+            searchIcon.setText("\uD83D\uDD0D");
+        }
+
+        JTextField searchField = new JTextField("Search services....");
+        searchField.setFont(new Font("Segoe UI", Font.PLAIN, 15));
+        searchField.setBorder(null);
+        searchField.setOpaque(false);
+        searchField.setForeground(new Color(148, 163, 184));
+
+        searchPill.add(searchIcon, BorderLayout.WEST);
+        searchPill.add(searchField, BorderLayout.CENTER);
+        inner.add(searchPill);
+
+        searchCard.add(inner);
+        return searchCard;
     }
 
-    private JLabel createLabel(String text) {
-        JLabel label = new JLabel(text);
-        label.setFont(new Font("Arial", Font.BOLD, 22));
+    // Creates a white rounded section container with title + grid inside
+    private JPanel createSection(String title, String[][] items) {
+        ShadowPanel sectionCard = new ShadowPanel();
+        sectionCard.setOpaque(false);
+
+        JPanel inner = new JPanel();
+        inner.setOpaque(false);
+        inner.setLayout(new BoxLayout(inner, BoxLayout.Y_AXIS));
+        inner.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        JLabel label = new JLabel(title);
+        label.setFont(new Font("Segoe UI", Font.BOLD, 22));
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
-        label.setHorizontalAlignment(SwingConstants.LEFT);
-        return label;
+        inner.add(label);
+        inner.add(Box.createVerticalStrut(15));
+
+        inner.add(createGrid(items));
+
+        sectionCard.add(inner);
+        return sectionCard;
     }
 
     private JPanel createGrid(String[][] items) {
-        JPanel grid = new JPanel(new GridLayout(2, 2, 15, 15));
-        grid.setBackground(Color.WHITE);
-        grid.setMaximumSize(new Dimension(Integer.MAX_VALUE, 260));
+        JPanel grid = new JPanel(new GridLayout(0, 2, 15, 15));
+        grid.setOpaque(false);
         grid.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         for (String[] item : items) {
@@ -147,119 +175,113 @@ public class LaundryPOS extends JPanel {
     }
 
     private JPanel createCard(String name, String desc, String price) {
-        JPanel card = new JPanel(new BorderLayout(15, 10));
-        card.setBackground(Color.WHITE);
-        card.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(230, 230, 230), 1, true),
-            BorderFactory.createEmptyBorder(20, 20, 20, 20)
-        ));
+        JPanel card = new JPanel(new BorderLayout(15, 10)) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Color.WHITE);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 15, 15);
+                g2.setColor(new Color(226, 232, 240));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 15, 15);
+                g2.dispose();
+            }
+        };
+        card.setOpaque(false);
+        card.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
         // Info
         JPanel info = new JPanel();
         info.setLayout(new BoxLayout(info, BoxLayout.Y_AXIS));
-        info.setBackground(Color.WHITE);
+        info.setOpaque(false);
 
         JLabel nameLabel = new JLabel(name);
-        nameLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
         nameLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         info.add(nameLabel);
 
         info.add(Box.createVerticalStrut(5));
 
         JLabel descLabel = new JLabel(desc);
-        descLabel.setFont(new Font("Arial", Font.PLAIN, 11));
-        descLabel.setForeground(Color.GRAY);
+        descLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        descLabel.setForeground(new Color(100, 116, 139));
         descLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         info.add(descLabel);
 
         info.add(Box.createVerticalStrut(10));
 
         JLabel priceLabel = new JLabel("\u20B1" + price);
-        priceLabel.setFont(new Font("Arial", Font.BOLD, 20));
+        priceLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
         priceLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         info.add(priceLabel);
 
         card.add(info, BorderLayout.CENTER);
 
-        // Circle "+" button
-        class CircleButton extends JButton {
-            public CircleButton(String label) {
-                super(label);
-                setPreferredSize(new Dimension(50, 50));
-                setFont(new Font("Arial", Font.BOLD, 28));
-                setBackground(new Color(135, 206, 250));
-                setForeground(Color.WHITE);
-                setContentAreaFilled(false);
-                setFocusPainted(false);
-                setBorderPainted(false);
-            }
+        // Circle "+" button (wrapped to prevent stretching)
+        JPanel btnWrapper = new JPanel(new GridBagLayout());
+        btnWrapper.setOpaque(false);
 
+        JButton btn = new JButton("+") {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                if (getModel().isPressed()) {
-                    g2.setColor(getBackground().darker());
-                } else {
-                    g2.setColor(getBackground());
-                }
+                g2.setColor(new Color(147, 197, 253)); // Light blue bubble
                 g2.fillOval(0, 0, getWidth(), getHeight());
-                super.paintComponent(g2);
+
+                g2.setColor(Color.WHITE);
+                g2.setFont(new Font("Segoe UI", Font.BOLD, 20));
+                FontMetrics fm = g2.getFontMetrics();
+                int x = (getWidth() - fm.stringWidth(getText())) / 2;
+                int y = ((getHeight() - fm.getHeight()) / 2) + fm.getAscent();
+                g2.drawString(getText(), x, y);
                 g2.dispose();
             }
-
-            @Override
-            protected void paintBorder(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(getBackground().darker());
-                g2.drawOval(0, 0, getWidth() - 1, getHeight() - 1);
-                g2.dispose();
-            }
-
-            @Override
-            public boolean contains(int x, int y) {
-                int radius = getWidth() / 2;
-                return (x - radius) * (x - radius) + (y - radius) * (y - radius) <= radius * radius;
-            }
-        }
-
-        CircleButton btn = new CircleButton("+");
-        btn.setMaximumSize(new Dimension(35, 35));
-        btn.setMinimumSize(new Dimension(35, 35));
+        };
+        btn.setPreferredSize(new Dimension(32, 32));
+        btn.setMinimumSize(new Dimension(32, 32));
+        btn.setMaximumSize(new Dimension(32, 32));
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(false);
+        btn.setFocusPainted(false);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btn.addActionListener(e -> addToCart(name, desc, Double.parseDouble(price)));
-        card.add(btn, BorderLayout.EAST);
+
+        btnWrapper.add(btn);
+        card.add(btnWrapper, BorderLayout.EAST);
 
         return card;
     }
 
     private JPanel createCart() {
+        ShadowPanel outerCard = new ShadowPanel();
+        outerCard.setPreferredSize(new Dimension(400, 0));
+        outerCard.setMinimumSize(new Dimension(380, 0));
+
         JPanel panel = new JPanel();
-        panel.setPreferredSize(new Dimension(380, 0));
-        panel.setMinimumSize(new Dimension(280, 0));
-        panel.setBackground(Color.WHITE);
+        panel.setOpaque(false);
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30));
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         JLabel title = new JLabel("Current Order");
-        title.setFont(new Font("Arial", Font.BOLD, 26));
+        title.setFont(new Font("Segoe UI", Font.BOLD, 24));
         title.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
         panel.add(title);
-        panel.add(Box.createVerticalStrut(30));
+        panel.add(Box.createVerticalStrut(20));
 
         // Cart items scroll
         cartPanel = new JPanel();
         cartPanel.setLayout(new BoxLayout(cartPanel, BoxLayout.Y_AXIS));
-        cartPanel.setBackground(Color.WHITE);
+        cartPanel.setOpaque(false);
         JScrollPane scroll = new JScrollPane(cartPanel);
         scroll.setBorder(null);
-        scroll.setBackground(Color.WHITE);
-        scroll.getViewport().setBackground(Color.WHITE);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.getVerticalScrollBar().setUI(new Scrollbar());
         scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         panel.add(scroll);
 
-        panel.add(Box.createVerticalGlue());
         panel.add(Box.createVerticalStrut(20));
 
         // Subtotal row
@@ -285,15 +307,26 @@ public class LaundryPOS extends JPanel {
         panel.add(Box.createVerticalStrut(25));
 
         // Checkout button
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        buttonPanel.setBackground(Color.WHITE);
-        buttonPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 65));
+        JButton checkout = new JButton("Proceed to Checkout") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(37, 99, 235)); // Modern Blue
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
 
-        JButton checkout = new JButton("Proceed to Checkout");
-        checkout.setPreferredSize(new Dimension(320, 55));
-        checkout.setFont(new Font("Arial", Font.BOLD, 16));
-        checkout.setBackground(new Color(65, 105, 225));
-        checkout.setForeground(Color.WHITE);
+                g2.setColor(Color.WHITE);
+                g2.setFont(new Font("Segoe UI", Font.BOLD, 14));
+                FontMetrics fm = g2.getFontMetrics();
+                int x = (getWidth() - fm.stringWidth(getText())) / 2;
+                int y = ((getHeight() - fm.getHeight()) / 2) + fm.getAscent();
+                g2.drawString(getText(), x, y);
+                g2.dispose();
+            }
+        };
+        checkout.setPreferredSize(new Dimension(Integer.MAX_VALUE, 50));
+        checkout.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
+        checkout.setContentAreaFilled(false);
         checkout.setBorderPainted(false);
         checkout.setFocusPainted(false);
         checkout.addActionListener(e -> {
@@ -311,15 +344,16 @@ public class LaundryPOS extends JPanel {
                 checkoutDialog.setSize(900, 700);
                 checkoutDialog.setLocationRelativeTo(LaundryPOS.this);
 
-                CheckoutScreen checkoutScreen = new CheckoutScreen(LaundryPOS.this, new ArrayList<>(cart), subtotal, tax);
+                CheckoutScreen checkoutScreen = new CheckoutScreen(LaundryPOS.this, new ArrayList<>(cart), subtotal,
+                        tax);
                 checkoutDialog.add(checkoutScreen);
                 checkoutDialog.setVisible(true);
             }
         });
-        buttonPanel.add(checkout);
-        panel.add(buttonPanel);
+        panel.add(checkout);
 
-        return panel;
+        outerCard.add(panel);
+        return outerCard;
     }
 
     // Helper to create a right-aligned total row
@@ -332,6 +366,7 @@ public class LaundryPOS extends JPanel {
         JLabel lbl = new JLabel(labelText);
         lbl.setFont(font);
         valueLabel.setFont(font);
+        valueLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 10)); // Add right padding
 
         row.add(lbl, BorderLayout.WEST);
         row.add(valueLabel, BorderLayout.EAST);
@@ -361,44 +396,58 @@ public class LaundryPOS extends JPanel {
         double subtotal = 0;
 
         for (Item item : cart) {
-            JPanel itemPanel = new JPanel();
+            JPanel itemPanel = new JPanel() {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setColor(new Color(248, 250, 252)); // Very light gray
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 15, 15);
+                    g2.dispose();
+                }
+            };
             itemPanel.setLayout(new BoxLayout(itemPanel, BoxLayout.Y_AXIS));
-            itemPanel.setBackground(new Color(245, 245, 245));
-            itemPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
-            itemPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 110));
-            itemPanel.setPreferredSize(new Dimension(300, 110));
+            itemPanel.setOpaque(false);
+            itemPanel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+            itemPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
             itemPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
             JLabel nameLabel = new JLabel(item.name);
-            nameLabel.setFont(new Font("Arial", Font.BOLD, 14));
+            nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
             nameLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
             itemPanel.add(nameLabel);
 
             itemPanel.add(Box.createVerticalStrut(3));
 
             JLabel priceDescLabel = new JLabel("\u20B1" + String.format("%.2f", item.price) + " " + item.desc);
-            priceDescLabel.setFont(new Font("Arial", Font.PLAIN, 11));
-            priceDescLabel.setForeground(Color.GRAY);
+            priceDescLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+            priceDescLabel.setForeground(new Color(100, 116, 139));
             priceDescLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
             itemPanel.add(priceDescLabel);
 
             itemPanel.add(Box.createVerticalStrut(10));
 
             // Quantity and price row
-            JPanel bottom = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 0));
-            bottom.setBackground(new Color(245, 245, 245));
+            JPanel bottom = new JPanel(new BorderLayout());
+            bottom.setOpaque(false);
             bottom.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-            bottom.setPreferredSize(new Dimension(280, 35));
 
-            JPanel qtyPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-            qtyPanel.setBackground(new Color(245, 245, 245));
+            JPanel qtyPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+            qtyPanel.setOpaque(false);
 
-            JButton minus = new JButton("-");
-            minus.setPreferredSize(new Dimension(30, 30));
-            minus.setFont(new Font("Arial", Font.BOLD, 16));
-            minus.setBackground(Color.WHITE);
-            minus.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
-            minus.setFocusPainted(false);
+            class QtyBtn extends JButton {
+                public QtyBtn(String t) {
+                    super(t);
+                    setPreferredSize(new Dimension(28, 28));
+                    setFont(new Font("Segoe UI", Font.BOLD, 14));
+                    setBackground(Color.WHITE);
+                    setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+                    setFocusPainted(false);
+                    setCursor(new Cursor(Cursor.HAND_CURSOR));
+                }
+            }
+
+            QtyBtn minus = new QtyBtn("-");
             minus.addActionListener(e -> {
                 if (item.qty > 1) {
                     item.qty -= 1;
@@ -408,15 +457,11 @@ public class LaundryPOS extends JPanel {
                 updateCart();
             });
 
-            JLabel qtyLabel = new JLabel(" " + item.qty + " kg ");
-            qtyLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+            JLabel qtyLabel = new JLabel(item.qty + " kg");
+            qtyLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+            qtyLabel.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 5));
 
-            JButton plus = new JButton("+");
-            plus.setPreferredSize(new Dimension(30, 30));
-            plus.setFont(new Font("Arial", Font.BOLD, 16));
-            plus.setBackground(Color.WHITE);
-            plus.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
-            plus.setFocusPainted(false);
+            QtyBtn plus = new QtyBtn("+");
             plus.addActionListener(e -> {
                 item.qty += 1;
                 updateCart();
@@ -428,10 +473,11 @@ public class LaundryPOS extends JPanel {
 
             double itemTotal = item.price * item.qty;
             JLabel priceLabel = new JLabel("\u20B1" + String.format("%.2f", itemTotal));
-            priceLabel.setFont(new Font("Arial", Font.BOLD, 15));
+            priceLabel.setFont(new Font("Segoe UI", Font.BOLD, 15));
+            priceLabel.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 5)); // Add padding to avoid clipping
 
-            bottom.add(qtyPanel);
-            bottom.add(priceLabel);
+            bottom.add(qtyPanel, BorderLayout.WEST);
+            bottom.add(priceLabel, BorderLayout.EAST);
 
             itemPanel.add(bottom);
 
@@ -446,7 +492,7 @@ public class LaundryPOS extends JPanel {
 
         subtotalLabel.setText("\u20B1" + String.format("%.2f", subtotal));
         taxLabel.setText("\u20B1" + String.format("%.2f", tax));
-        totalLabel.setText("\u20B1" + String.format("%.2f", total));  // FIX: was showing subtotal before
+        totalLabel.setText("\u20B1" + String.format("%.2f", total)); // FIX: was showing subtotal before
 
         cartPanel.revalidate();
         cartPanel.repaint();

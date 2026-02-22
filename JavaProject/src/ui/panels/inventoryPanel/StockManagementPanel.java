@@ -1,345 +1,431 @@
 package src.ui.panels.inventoryPanel;
+
 import java.awt.*;
+import java.awt.event.*;
 import javax.swing.*;
-import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.DefaultTableModel;
-import src.util.config.*;
+import javax.swing.border.*;
+import javax.swing.plaf.basic.BasicArrowButton;
+import javax.swing.plaf.basic.BasicComboBoxUI;
+import javax.swing.table.*;
+import src.util.components.Scrollbar;
+import src.util.components.ShadowPanel;
+import src.util.config.UIStyle;
 
 public class StockManagementPanel extends JPanel {
 
+    private JTable stockTable;
+    private JTable historyTable;
+    private DefaultTableModel stockModel;
+    private DefaultTableModel historyModel;
+    private JTextField searchField;
+    private JSpinner thresholdSpinner;
+
+    private static final Color AMBER_BTN = new Color(245, 158, 11);
+    private static final Color GREEN_BTN = new Color(34, 197, 94);
+    private static final Color DARK_SLATE = new Color(30, 41, 59);
+
     public StockManagementPanel() {
-        setLayout(new BorderLayout(0, 15));
+        setLayout(new BorderLayout());
         setBackground(UIStyle.BACKGROUND);
-        setBorder(BorderFactory.createEmptyBorder(20, 30, 20, 30));
-        initUI();
+
+        JPanel body = buildBody();
+        JScrollPane scroll = new JScrollPane(body);
+        scroll.setBorder(null);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.getVerticalScrollBar().setUI(new Scrollbar());
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+        add(scroll, BorderLayout.CENTER);
     }
 
-    private void initUI() {
-        // Header with back button
-        JPanel headerPanel = createHeader();
-        add(headerPanel, BorderLayout.NORTH);
+    private JPanel buildBody() {
+        JPanel p = new JPanel(new GridBagLayout());
+        p.setOpaque(false);
+        p.setBorder(new EmptyBorder(30, 40, 32, 40));
 
-        // Main content
-        JPanel mainPanel = new JPanel(new BorderLayout(0, 15));
-        mainPanel.setBackground(UIStyle.BACKGROUND);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        gbc.insets = new Insets(0, 0, 30, 0);
 
-        // Filter section
-        JPanel filterPanel = createFilterPanel();
-        mainPanel.add(filterPanel, BorderLayout.NORTH);
+        // Header
+        gbc.gridy = 0;
+        p.add(buildPageHeader(), gbc);
 
-        // Stock list section
-        JPanel stockListPanel = createStockListPanel();
-        mainPanel.add(stockListPanel, BorderLayout.CENTER);
+        // Filter Row (Pill Styling)
+        gbc.gridy = 1;
+        gbc.insets = new Insets(0, 0, 20, 0);
+        p.add(buildFilterRow(), gbc);
 
-        // History section
-        JPanel historyPanel = createHistoryPanel();
-        mainPanel.add(historyPanel, BorderLayout.SOUTH);
+        // Inventory Stock List Card
+        gbc.gridy = 2;
+        gbc.insets = new Insets(0, 0, 20, 0);
+        p.add(buildStockListCard(), gbc);
 
-        add(mainPanel, BorderLayout.CENTER);
+        // Stock Update History Card
+        gbc.gridy = 3;
+        gbc.insets = new Insets(0, 0, 0, 0);
+        p.add(buildHistoryCard(), gbc);
+
+        return p;
     }
 
-    private JPanel createHeader() {
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(Color.WHITE);
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+    private JPanel buildPageHeader() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setOpaque(false);
 
         JPanel titlePanel = new JPanel();
         titlePanel.setLayout(new BoxLayout(titlePanel, BoxLayout.Y_AXIS));
-        titlePanel.setBackground(Color.WHITE);
+        titlePanel.setOpaque(false);
 
         JLabel titleLabel = new JLabel("Inventory Stocks Management");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 20));
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 36));
         titleLabel.setForeground(UIStyle.TEXT_PRIMARY);
 
         JLabel subtitleLabel = new JLabel("Update, Stock In, Stock Out Inventory Management System");
-        subtitleLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        subtitleLabel.setFont(UIStyle.REGULAR);
         subtitleLabel.setForeground(UIStyle.TEXT_SECONDARY);
 
         titlePanel.add(titleLabel);
-        titlePanel.add(Box.createVerticalStrut(5));
+        titlePanel.add(Box.createVerticalStrut(8));
         titlePanel.add(subtitleLabel);
 
-        // Back button
-        JButton backButton = createStyledButton("Go back to Inventory", UIStyle.TEXT_PRIMARY, Color.WHITE, 200, 40);
-        backButton.addActionListener(e -> goBackToInventory());
+        // Back Button (34px pill)
+        JButton backBtn = new JButton("Go back to Inventory") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(DARK_SLATE);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), getHeight(), getHeight());
+                super.paintComponent(g2);
+                g2.dispose();
+            }
+        };
+        backBtn.setFont(new Font("SansSerif", Font.BOLD, 12));
+        backBtn.setForeground(Color.WHITE);
+        backBtn.setPreferredSize(new Dimension(185, 34));
+        backBtn.setMaximumSize(new Dimension(185, 34));
+        backBtn.setFocusPainted(false);
+        backBtn.setBorderPainted(false);
+        backBtn.setContentAreaFilled(false);
+        backBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        backBtn.addActionListener(e -> {
+            Window window = SwingUtilities.getWindowAncestor(this);
+            if (window != null)
+                window.dispose();
+        });
 
-        headerPanel.add(titlePanel, BorderLayout.WEST);
-        headerPanel.add(backButton, BorderLayout.EAST);
+        JPanel btnWrapper = new JPanel();
+        btnWrapper.setLayout(new BoxLayout(btnWrapper, BoxLayout.Y_AXIS));
+        btnWrapper.setOpaque(false);
+        btnWrapper.add(Box.createVerticalGlue());
+        btnWrapper.add(backBtn);
+        btnWrapper.add(Box.createVerticalGlue());
 
-        return headerPanel;
+        panel.add(titlePanel, BorderLayout.WEST);
+        panel.add(btnWrapper, BorderLayout.EAST);
+        return panel;
     }
 
-    private void goBackToInventory() {
-        // Close current window
-        Window window = SwingUtilities.getWindowAncestor(this);
-        if (window != null) {
-            window.dispose();
-        }
-    }
+    private JPanel buildFilterRow() {
+        JPanel wrapper = new JPanel(new BorderLayout(15, 0));
+        wrapper.setOpaque(false);
 
-    private JPanel createFilterPanel() {
-        JPanel filterPanel = new JPanel(new BorderLayout());
-        filterPanel.setBackground(Color.WHITE);
-        filterPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(226, 232, 240), 1),
-                BorderFactory.createEmptyBorder(15, 20, 15, 20)));
+        // Search Pill
+        JPanel searchPill = createPillWrapper(300, 42);
+        JLabel searchIcon = createScaledIcon("/src/resources/images/search.png", 16, 16);
+        searchField = new JTextField("Search products...");
+        styleSearchField(searchField);
+        searchPill.add(searchIcon, BorderLayout.WEST);
+        searchPill.add(searchField, BorderLayout.CENTER);
 
-        JLabel filterLabel = new JLabel("Filter");
-        filterLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
-        filterLabel.setForeground(UIStyle.TEXT_PRIMARY);
+        // Extra Filters
+        JPanel rightSide = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
+        rightSide.setOpaque(false);
 
-        JPanel filterControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
-        filterControls.setBackground(Color.WHITE);
-
-        JTextField searchField = new JTextField(25);
-        searchField.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        searchField.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(226, 232, 240), 1),
-                BorderFactory.createEmptyBorder(8, 12, 8, 12)));
-
-        JComboBox<String> stockLevelFilter = new JComboBox<>(
+        JComboBox<String> stockCombo = new JComboBox<>(
                 new String[] { "All Stock Levels", "In Stock", "Low Stock", "Out of Stock" });
-        stockLevelFilter.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        rightSide.add(createPillCombo(stockCombo, 160));
 
-        JSpinner thresholdSpinner = new JSpinner(new SpinnerNumberModel(10, 1, 100, 1));
-        thresholdSpinner.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        ((JSpinner.DefaultEditor) thresholdSpinner.getEditor()).getTextField().setColumns(3);
+        // Threshold Spinner (Pill shaped)
+        JPanel thresholdPill = createPillWrapper(80, 42);
+        thresholdSpinner = new JSpinner(new SpinnerNumberModel(10, 1, 999, 1));
+        styleSpinner(thresholdSpinner);
+        thresholdPill.add(thresholdSpinner, BorderLayout.CENTER);
+        rightSide.add(thresholdPill);
 
-        JButton setThresholdBtn = createStyledButton("Set Low Stock Treshold", new Color(249, 115, 22), Color.WHITE,
-                180, 35);
+        // Set Threshold Button (Amber Pill)
+        JButton setThresholdBtn = buildActionButton("Set Low Stock Threshold", AMBER_BTN, 180, 42);
+        rightSide.add(setThresholdBtn);
 
-        filterControls.add(searchField);
-        filterControls.add(stockLevelFilter);
-        filterControls.add(thresholdSpinner);
-        filterControls.add(setThresholdBtn);
-
-        JPanel filterTop = new JPanel(new BorderLayout());
-        filterTop.setBackground(Color.WHITE);
-        filterTop.add(filterLabel, BorderLayout.NORTH);
-        filterTop.add(Box.createVerticalStrut(10), BorderLayout.CENTER);
-
-        filterPanel.add(filterTop, BorderLayout.NORTH);
-        filterPanel.add(filterControls, BorderLayout.CENTER);
-
-        return filterPanel;
+        wrapper.add(searchPill, BorderLayout.CENTER);
+        wrapper.add(rightSide, BorderLayout.EAST);
+        return wrapper;
     }
 
-    private JPanel createStockListPanel() {
-        JPanel stockListPanel = new JPanel(new BorderLayout(0, 10));
-        stockListPanel.setBackground(Color.WHITE);
-        stockListPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(226, 232, 240), 1),
-                BorderFactory.createEmptyBorder(20, 20, 20, 20)));
+    private JPanel buildStockListCard() {
+        JPanel card = createContentCard("Inventory Stock List");
+        card.setPreferredSize(new Dimension(0, 420));
 
-        JLabel stockListLabel = new JLabel("Inventory Stock List");
-        stockListLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
-        stockListLabel.setForeground(UIStyle.TEXT_PRIMARY);
-
-        // Stock Table
-        String[] stockColumns = { "Product Name", "Category", "Current Stock", "Reorder Point", "Status" };
-        DefaultTableModel stockTableModel = new DefaultTableModel(stockColumns, 0) {
+        String[] cols = { "Product Name", "Category", "Current Stock", "Reorder Point", "Status" };
+        stockModel = new DefaultTableModel(cols, 0) {
             @Override
-            public boolean isCellEditable(int row, int column) {
+            public boolean isCellEditable(int r, int c) {
                 return false;
             }
         };
+        stockTable = createStyledTable(stockModel);
 
-        JTable stockTable = createTable(stockTableModel);
+        // Sample Data
+        stockModel.addRow(new Object[] { "Ariel Powder 1kg", "Powder Detergent", "25", "10", "In Stock" });
+        stockModel.addRow(new Object[] { "Tide Liquid 2L", "Liquid Detergent", "15", "10", "In Stock" });
+        stockModel.addRow(new Object[] { "Downy 1.5L", "Fabric Conditioner", "8", "10", "Low Stock" });
+        stockModel.addRow(new Object[] { "Surf Powder 500g", "Powder Detergent", "30", "15", "In Stock" });
 
-        // Sample data
-        stockTableModel.addRow(new Object[] { "Ariel Powder 1kg", "Powder Detergent", "25", "10", "In Stock" });
-        stockTableModel.addRow(new Object[] { "Tide Liquid 2L", "Liquid Detergent", "15", "10", "In Stock" });
-        stockTableModel.addRow(new Object[] { "Downy 1.5L", "Fabric Conditioner", "8", "10", "Low Stock" });
-        stockTableModel.addRow(new Object[] { "Surf Powder 500g", "Powder Detergent", "30", "15", "In Stock" });
-        stockTableModel.addRow(new Object[] { "Breeze Liquid 1L", "Liquid Detergent", "5", "10", "Low Stock" });
+        JScrollPane scroll = createStyledScrollPane(stockTable);
+        card.add(scroll, BorderLayout.CENTER);
 
-        JScrollPane stockScrollPane = new JScrollPane(stockTable);
-        stockScrollPane.setBorder(BorderFactory.createEmptyBorder());
-        stockScrollPane.setPreferredSize(new Dimension(0, 250));
+        JPanel actionP = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 10));
+        actionP.setOpaque(false);
+        actionP.add(buildActionButton("Update Stock", GREEN_BTN, 140, 38));
+        card.add(actionP, BorderLayout.SOUTH);
 
-        JPanel stockActionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
-        stockActionPanel.setBackground(Color.WHITE);
-
-        JButton updateStockBtn = createStyledButton("Update Stock", new Color(34, 197, 94), Color.WHITE, 150, 38);
-        updateStockBtn.addActionListener(e -> showUpdateStockConfirmation(stockTable));
-        stockActionPanel.add(updateStockBtn);
-
-        stockListPanel.add(stockListLabel, BorderLayout.NORTH);
-        stockListPanel.add(stockScrollPane, BorderLayout.CENTER);
-        stockListPanel.add(stockActionPanel, BorderLayout.SOUTH);
-
-        return stockListPanel;
+        return wrapInShadow(card);
     }
 
-    private JPanel createHistoryPanel() {
-        JPanel historyPanel = new JPanel(new BorderLayout(0, 10));
-        historyPanel.setBackground(Color.WHITE);
-        historyPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(226, 232, 240), 1),
-                BorderFactory.createEmptyBorder(20, 20, 20, 20)));
+    private JPanel buildHistoryCard() {
+        JPanel card = createContentCard("Stock Update History");
+        card.setPreferredSize(new Dimension(0, 350));
 
-        JLabel historyLabel = new JLabel("Stock Update History");
-        historyLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
-        historyLabel.setForeground(UIStyle.TEXT_PRIMARY);
-
-        // History Table
-        String[] historyColumns = { "Date", "Product", "Type", "Quantity", "Updated By" };
-        DefaultTableModel historyTableModel = new DefaultTableModel(historyColumns, 0) {
+        String[] cols = { "Date", "Product", "Type", "Quantity", "Updated By" };
+        historyModel = new DefaultTableModel(cols, 0) {
             @Override
-            public boolean isCellEditable(int row, int column) {
+            public boolean isCellEditable(int r, int c) {
                 return false;
             }
         };
+        historyTable = createStyledTable(historyModel);
 
-        JTable historyTable = createTable(historyTableModel);
+        // Sample Data
+        historyModel.addRow(new Object[] { "2025-02-15", "Ariel Powder 1kg", "Stock In", "+20", "Admin" });
+        historyModel.addRow(new Object[] { "2025-02-14", "Tide Liquid 2L", "Stock Out", "-5", "Staff" });
 
-        // Sample data
-        historyTableModel.addRow(new Object[] { "2025-02-15", "Ariel Powder 1kg", "Stock In", "+20", "Admin" });
-        historyTableModel.addRow(new Object[] { "2025-02-14", "Tide Liquid 2L", "Stock Out", "-5", "Admin" });
-        historyTableModel.addRow(new Object[] { "2025-02-14", "Downy 1.5L", "Stock In", "+10", "Admin" });
-        historyTableModel.addRow(new Object[] { "2025-02-13", "Surf Powder 500g", "Stock Out", "-8", "Admin" });
+        JScrollPane scroll = createStyledScrollPane(historyTable);
+        card.add(scroll, BorderLayout.CENTER);
 
-        JScrollPane historyScrollPane = new JScrollPane(historyTable);
-        historyScrollPane.setBorder(BorderFactory.createEmptyBorder());
-        historyScrollPane.setPreferredSize(new Dimension(0, 200));
+        JPanel actionP = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 10));
+        actionP.setOpaque(false);
+        actionP.add(buildActionButton("Generate Report", GREEN_BTN, 140, 38));
+        card.add(actionP, BorderLayout.SOUTH);
 
-        JPanel historyActionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
-        historyActionPanel.setBackground(Color.WHITE);
-
-        JButton generateReportBtn = createStyledButton("Generate Report", new Color(34, 197, 94), Color.WHITE, 150, 38);
-        generateReportBtn.addActionListener(e -> JOptionPane.showMessageDialog(this, "Report generated successfully!",
-                "Success", JOptionPane.INFORMATION_MESSAGE));
-        historyActionPanel.add(generateReportBtn);
-
-        historyPanel.add(historyLabel, BorderLayout.NORTH);
-        historyPanel.add(historyScrollPane, BorderLayout.CENTER);
-        historyPanel.add(historyActionPanel, BorderLayout.SOUTH);
-
-        return historyPanel;
+        return wrapInShadow(card);
     }
 
-    private JTable createTable(DefaultTableModel model) {
-        JTable table = new JTable(model);
-        table.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        table.setRowHeight(40);
-        table.setShowVerticalLines(false);
+    // ── Utility Component Builders ───────────────────────────────────────────
+
+    private JPanel createContentCard(String title) {
+        JPanel card = new JPanel(new BorderLayout());
+        card.setBackground(Color.WHITE);
+        card.setBorder(new EmptyBorder(24, 24, 24, 24));
+
+        JLabel lbl = new JLabel(title);
+        lbl.setFont(new Font("Segoe UI", Font.BOLD, 17));
+        lbl.setForeground(UIStyle.TEXT_PRIMARY);
+        lbl.setBorder(new EmptyBorder(0, 0, 16, 0));
+        card.add(lbl, BorderLayout.NORTH);
+        return card;
+    }
+
+    private JTable createStyledTable(DefaultTableModel model) {
+        JTable table = new JTable(model) {
+            @Override
+            public Component prepareRenderer(TableCellRenderer renderer, int row, int col) {
+                Component c = super.prepareRenderer(renderer, row, col);
+                if (!isRowSelected(row)) {
+                    c.setBackground(row % 2 == 0 ? Color.WHITE : new Color(248, 250, 252));
+                } else {
+                    c.setBackground(new Color(239, 246, 255));
+                }
+                return c;
+            }
+        };
+        table.setRowHeight(62);
+        table.setShowGrid(false);
         table.setIntercellSpacing(new Dimension(0, 0));
-        table.setSelectionBackground(new Color(239, 246, 255));
-        table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 13));
-        table.getTableHeader().setBackground(new Color(248, 250, 252));
+        table.setFocusable(false);
+        table.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        table.setBorder(null);
 
-        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
-        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
-        for (int i = 0; i < table.getColumnCount(); i++) {
-            table.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
-        }
+        JTableHeader th = table.getTableHeader();
+        th.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        th.setForeground(new Color(100, 116, 139));
+        th.setBackground(new Color(248, 250, 252));
+        th.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(226, 232, 240)));
+        th.setPreferredSize(new Dimension(0, 38));
+        th.setReorderingAllowed(false);
 
+        // Custom Header Renderer to remove "hati"
+        DefaultTableCellRenderer hr = new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object v, boolean s, boolean f, int r, int c) {
+                JLabel l = (JLabel) super.getTableCellRendererComponent(t, v, s, f, r, c);
+                l.setBorder(new EmptyBorder(0, 12, 0, 12));
+                l.setBackground(new Color(248, 250, 252));
+                l.setForeground(new Color(100, 116, 139));
+                l.setHorizontalAlignment(SwingConstants.LEFT);
+                l.setOpaque(true);
+                return l;
+            }
+        };
+        th.setDefaultRenderer(hr);
+
+        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object v, boolean s, boolean f, int r, int c) {
+                Component comp = super.getTableCellRendererComponent(t, v, s, f, r, c);
+                setBorder(new EmptyBorder(0, 12, 0, 12));
+                return comp;
+            }
+        });
         return table;
     }
 
-    private void showUpdateStockConfirmation(JTable stockTable) {
-        int selectedRow = stockTable.getSelectedRow();
-        if (selectedRow == -1) {
-            JOptionPane.showMessageDialog(this, "Please select a product to update stock.", "No Selection",
-                    JOptionPane.WARNING_MESSAGE);
-            return;
+    private JScrollPane createStyledScrollPane(JTable table) {
+        JScrollPane scroll = new JScrollPane(table);
+        scroll.getVerticalScrollBar().setUI(new Scrollbar());
+        scroll.setBorder(BorderFactory.createMatteBorder(1, 0, 1, 0, new Color(226, 232, 240)));
+        scroll.getViewport().setBackground(Color.WHITE);
+        return scroll;
+    }
+
+    private JPanel createPillWrapper(int width, int height) {
+        JPanel p = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Color.WHITE);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 50, 50);
+                g2.setColor(new Color(226, 232, 240));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 50, 50);
+                g2.dispose();
+            }
+        };
+        p.setOpaque(false);
+        p.setPreferredSize(new Dimension(width, height));
+        p.setBorder(new EmptyBorder(0, 15, 0, 15));
+        return p;
+    }
+
+    private JPanel createPillCombo(JComboBox<String> combo, int width) {
+        JPanel pill = createPillWrapper(width, 42);
+        combo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        combo.setFocusable(false);
+        combo.setOpaque(false);
+        combo.setBackground(new Color(0, 0, 0, 0));
+        combo.setBorder(null);
+        combo.setUI(new BasicComboBoxUI() {
+            @Override
+            protected JButton createArrowButton() {
+                JButton btn = new BasicArrowButton(BasicArrowButton.SOUTH, Color.WHITE, Color.WHITE,
+                        new Color(100, 116, 139), Color.WHITE);
+                btn.setBorder(BorderFactory.createEmptyBorder());
+                btn.setBackground(Color.WHITE);
+                btn.setOpaque(false);
+                return btn;
+            }
+
+            @Override
+            public void paintCurrentValueBackground(Graphics g, Rectangle bounds, boolean hasFocus) {
+            }
+
+            @Override
+            public void paint(Graphics g, JComponent c) {
+                // Ensure no default background painting
+                super.paint(g, c);
+            }
+        });
+        pill.add(combo, BorderLayout.CENTER);
+        return pill;
+    }
+
+    private void styleSearchField(JTextField field) {
+        field.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        field.setForeground(UIStyle.TEXT_SECONDARY);
+        field.setBorder(new EmptyBorder(0, 8, 0, 0));
+        field.setOpaque(false);
+        field.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                if (field.getText().equals("Search products...")) {
+                    field.setText("");
+                    field.setForeground(UIStyle.TEXT_PRIMARY);
+                }
+            }
+
+            @Override
+            public void focusLost(FocusEvent e) {
+                if (field.getText().isEmpty()) {
+                    field.setText("Search products...");
+                    field.setForeground(UIStyle.TEXT_SECONDARY);
+                }
+            }
+        });
+    }
+
+    private void styleSpinner(JSpinner spinner) {
+        spinner.setBorder(BorderFactory.createEmptyBorder());
+        spinner.setOpaque(false);
+        spinner.setBackground(new Color(0, 0, 0, 0));
+
+        // Aggressively remove borders from all sub-components
+        for (Component c : spinner.getComponents()) {
+            if (c instanceof JComponent) {
+                ((JComponent) c).setBorder(BorderFactory.createEmptyBorder());
+            }
         }
 
-        // Show custom confirmation dialog matching your design
-        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Confirmation", true);
-        dialog.setLayout(new BorderLayout());
-        dialog.setSize(400, 200);
-        dialog.setLocationRelativeTo(this);
-        dialog.setResizable(false);
+        JComponent editor = spinner.getEditor();
+        editor.setOpaque(false);
+        editor.setBackground(new Color(0, 0, 0, 0));
+        editor.setBorder(BorderFactory.createEmptyBorder());
 
-        JPanel contentPanel = new JPanel();
-        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
-        contentPanel.setBackground(new Color(207, 250, 254));
-        contentPanel.setBorder(BorderFactory.createEmptyBorder(40, 40, 30, 40));
+        if (editor instanceof JSpinner.DefaultEditor) {
+            JTextField tf = ((JSpinner.DefaultEditor) editor).getTextField();
+            tf.setOpaque(false);
+            tf.setBackground(new Color(0, 0, 0, 0));
+            tf.setBorder(BorderFactory.createEmptyBorder());
+            tf.setHorizontalAlignment(JTextField.CENTER);
+            tf.setFont(new Font("Segoe UI", Font.BOLD, 13));
+            tf.setForeground(UIStyle.TEXT_PRIMARY);
+        }
 
-        JLabel messageLabel = new JLabel(
-                "<html><div style='text-align: center;'>Are you sure?<br>You want to update this stock?</div></html>");
-        messageLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
-        messageLabel.setForeground(UIStyle.TEXT_PRIMARY);
-        messageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        contentPanel.add(messageLabel);
-        contentPanel.add(Box.createVerticalStrut(25));
-
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 0));
-        buttonPanel.setBackground(new Color(207, 250, 254));
-
-        JButton yesButton = createDialogButton("Yes", new Color(34, 197, 94));
-        JButton noButton = createDialogButton("No", new Color(239, 68, 68));
-
-        yesButton.addActionListener(e -> {
-            dialog.dispose();
-            JOptionPane.showMessageDialog(this, "Stock updated successfully!", "Success",
-                    JOptionPane.INFORMATION_MESSAGE);
-        });
-
-        noButton.addActionListener(e -> dialog.dispose());
-
-        buttonPanel.add(yesButton);
-        buttonPanel.add(noButton);
-
-        contentPanel.add(buttonPanel);
-        dialog.add(contentPanel, BorderLayout.CENTER);
-        dialog.setVisible(true);
-    }
-
-    private JButton createStyledButton(String text, Color bgColor, Color fgColor, int width, int height) {
-        JButton btn = new JButton(text) {
+        spinner.setUI(new javax.swing.plaf.basic.BasicSpinnerUI() {
             @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-                Color color = bgColor;
-                if (getModel().isPressed())
-                    color = bgColor.darker();
-                else if (getModel().isRollover())
-                    color = bgColor.brighter();
-
-                g2.setColor(color);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
-                g2.setColor(fgColor);
-                g2.setFont(getFont());
-
-                FontMetrics fm = g2.getFontMetrics();
-                int x = (getWidth() - fm.stringWidth(getText())) / 2;
-                int y = ((getHeight() - fm.getHeight()) / 2) + fm.getAscent();
-                g2.drawString(getText(), x, y);
-                g2.dispose();
+            protected Component createNextButton() {
+                return null;
             }
-        };
-        btn.setFont(new Font("SansSerif", Font.BOLD, 13));
-        btn.setPreferredSize(new Dimension(width, height));
-        btn.setBorderPainted(false);
-        btn.setFocusPainted(false);
-        btn.setContentAreaFilled(false);
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        return btn;
+
+            @Override
+            protected Component createPreviousButton() {
+                return null;
+            }
+        });
     }
 
-    private JButton createDialogButton(String text, Color bgColor) {
+    private JButton buildActionButton(String text, Color color, int w, int h) {
         JButton btn = new JButton(text) {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-                Color color = bgColor;
-                if (getModel().isPressed())
-                    color = bgColor.darker();
-                else if (getModel().isRollover())
-                    color = bgColor.brighter();
-
-                g2.setColor(color);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+                g2.setColor(getModel().isRollover() ? color.darker() : color);
+                // Use pill rounding (height)
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), getHeight(), getHeight());
                 g2.setColor(Color.WHITE);
                 g2.setFont(getFont());
-
                 FontMetrics fm = g2.getFontMetrics();
                 int x = (getWidth() - fm.stringWidth(getText())) / 2;
                 int y = ((getHeight() - fm.getHeight()) / 2) + fm.getAscent();
@@ -347,12 +433,35 @@ public class StockManagementPanel extends JPanel {
                 g2.dispose();
             }
         };
-        btn.setFont(new Font("SansSerif", Font.BOLD, 14));
-        btn.setPreferredSize(new Dimension(100, 45));
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        btn.setPreferredSize(new Dimension(w, h));
+        btn.setContentAreaFilled(false);
         btn.setBorderPainted(false);
         btn.setFocusPainted(false);
-        btn.setContentAreaFilled(false);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         return btn;
+    }
+
+    private JLabel createScaledIcon(String path, int w, int h) {
+        JLabel lbl = new JLabel();
+        try {
+            java.net.URL url = getClass().getResource(path);
+            if (url != null) {
+                ImageIcon original = new ImageIcon(url);
+                Image scaled = original.getImage().getScaledInstance(w, h, Image.SCALE_SMOOTH);
+                lbl.setIcon(new ImageIcon(scaled));
+            } else {
+                lbl.setText("🔍");
+            }
+        } catch (Exception e) {
+            lbl.setText("🔍");
+        }
+        return lbl;
+    }
+
+    private JPanel wrapInShadow(JPanel content) {
+        ShadowPanel sp = new ShadowPanel();
+        sp.add(content);
+        return sp;
     }
 }

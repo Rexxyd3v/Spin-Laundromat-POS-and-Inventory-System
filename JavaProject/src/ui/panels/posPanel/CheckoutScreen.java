@@ -1,8 +1,14 @@
 package src.ui.panels.posPanel;
 
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.Random;
 import javax.swing.*;
-
+import javax.swing.border.*;
+import javax.swing.plaf.basic.BasicRadioButtonUI;
+import src.util.components.Scrollbar;
+import src.util.components.ShadowPanel;
+import src.util.config.UIStyle;
 
 public class CheckoutScreen extends JPanel {
 
@@ -13,334 +19,652 @@ public class CheckoutScreen extends JPanel {
     private ButtonGroup paymentGroup;
     private JRadioButton cashRadio;
     private JRadioButton gcashRadio;
-    private java.util.ArrayList<LaundryPOS.Item> cartItems;
+    private ArrayList<LaundryPOS.Item> cartItems;
     private double subtotal;
     private double tax;
-    private JLabel orderSummaryLabel;
     private LaundryPOS parentFrame;
+    private String orderNumber;
+
+    // ─── Brand Constants ─────────────────────────────────────────────────────
+    private static final String STORE_NAME = "Spin Laundromat Service";
+    private static final String STORE_ADDRESS = "143 Lamar St., Brgy. 164 Zone 13,\nRivera Village NAIA, Pasay City";
 
     public CheckoutScreen() {
-        this(null, new java.util.ArrayList<>(), 0, 0);
+        this(null, new ArrayList<>(), 0, 0);
     }
 
-    public CheckoutScreen(LaundryPOS parent, java.util.ArrayList<LaundryPOS.Item> cart, double subtotal, double tax) {
+    public CheckoutScreen(LaundryPOS parent, ArrayList<LaundryPOS.Item> cart,
+            double subtotal, double tax) {
         this.parentFrame = parent;
         this.cartItems = cart;
         this.subtotal = subtotal;
         this.tax = tax;
+        this.orderNumber = generateOrderNumber();
 
-        // Main panel with light blue background
         setLayout(new BorderLayout());
-        setBackground(new Color(175, 238, 238));
+        setBackground(UIStyle.BACKGROUND);
 
-        // Add left and right panels
-        add(createLeftPanel(), BorderLayout.CENTER);
-        add(createRightPanel(), BorderLayout.EAST);
+        // ── Top Header (back button + title) ─────────────────────────────────
+        add(buildHeader(), BorderLayout.NORTH);
+
+        // ── Two-column body wrapped in vertical-only scroll pane ─────────────
+        JPanel body = new JPanel(new BorderLayout(28, 0));
+        body.setOpaque(false);
+        body.setBorder(new EmptyBorder(0, 48, 40, 48));
+
+        // Left: stacked form cards
+        JPanel leftCol = new JPanel();
+        leftCol.setLayout(new BoxLayout(leftCol, BoxLayout.Y_AXIS));
+        leftCol.setOpaque(false);
+        leftCol.add(buildContactCard());
+        leftCol.add(Box.createVerticalStrut(18));
+        leftCol.add(buildInstructionsCard());
+        leftCol.add(Box.createVerticalStrut(18));
+        leftCol.add(buildPaymentCard());
+
+        body.add(leftCol, BorderLayout.CENTER);
+        body.add(buildOrderSummaryCard(), BorderLayout.EAST);
+
+        JScrollPane scroll = new JScrollPane(body);
+        scroll.setBorder(null);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scroll.getVerticalScrollBar().setUI(new Scrollbar());
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+
+        add(scroll, BorderLayout.CENTER);
     }
 
-    private JPanel createLeftPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBackground(new Color(175, 238, 238));
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 30, 20, 20));
+    // ══════════════════════════════════════════════════════════════════════════
+    // HEADER
+    // ══════════════════════════════════════════════════════════════════════════
+    private JPanel buildHeader() {
+        JPanel wrap = new JPanel(new BorderLayout());
+        wrap.setOpaque(false);
 
-        // Header with back button
-        JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        headerPanel.setBackground(new Color(175, 238, 238));
-        JButton backButton = new JButton("←");
-        backButton.setFont(new Font("Arial", Font.BOLD, 20));
-        backButton.setBackground(Color.WHITE);
-        backButton.setFocusPainted(false);
-        backButton.addActionListener(e -> {
-            Window window = SwingUtilities.getWindowAncestor(CheckoutScreen.this);
-            if (window != null) {
-                window.dispose();
+        JPanel inner = new JPanel(new FlowLayout(FlowLayout.LEFT, 48, 22));
+        inner.setOpaque(false);
+
+        // ── Circular back button ──────────────────────────────────────────────
+        JButton backBtn = new JButton("←") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                if (getModel().isRollover()) {
+                    // filled blue on hover
+                    g2.setColor(UIStyle.PRIMARY);
+                    g2.fillOval(0, 0, getWidth(), getHeight());
+                    g2.setColor(Color.WHITE);
+                } else {
+                    // white circle with border idle
+                    g2.setColor(Color.WHITE);
+                    g2.fillOval(0, 0, getWidth(), getHeight());
+                    g2.setColor(new Color(203, 213, 225));
+                    g2.setStroke(new BasicStroke(1.5f));
+                    g2.drawOval(1, 1, getWidth() - 3, getHeight() - 3);
+                    g2.setColor(UIStyle.TEXT_PRIMARY);
+                }
+
+                g2.setFont(getFont());
+                FontMetrics fm = g2.getFontMetrics();
+                // shift arrow 1 px left for optical centre
+                int x = (getWidth() - fm.stringWidth(getText())) / 2 - 1;
+                int y = (getHeight() + fm.getAscent() - fm.getDescent()) / 2;
+                g2.drawString(getText(), x, y);
+                g2.dispose();
             }
+        };
+        backBtn.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        backBtn.setPreferredSize(new Dimension(42, 42));
+        backBtn.setContentAreaFilled(false);
+        backBtn.setBorderPainted(false);
+        backBtn.setFocusPainted(false);
+        backBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        backBtn.addActionListener(e -> {
+            Window w = SwingUtilities.getWindowAncestor(this);
+            if (w != null)
+                w.dispose();
         });
-        JLabel titleLabel = new JLabel("CHECKOUT");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 28));
-        headerPanel.add(backButton);
-        headerPanel.add(Box.createHorizontalStrut(10));
-        headerPanel.add(titleLabel);
-        panel.add(headerPanel);
-        panel.add(Box.createVerticalStrut(30));
 
-        // 1. Contact Information
-        JLabel contactLabel = new JLabel("1. Contact Information");
-        contactLabel.setFont(new Font("Arial", Font.BOLD, 14));
-        panel.add(contactLabel);
-        panel.add(Box.createVerticalStrut(10));
+        // ── CHECKOUT title ────────────────────────────────────────────────────
+        JLabel title = new JLabel("CHECKOUT");
+        title.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        title.setForeground(UIStyle.TEXT_PRIMARY);
 
-        // First Name and Last Name
-        JPanel namePanel = new JPanel(new GridLayout(1, 2, 10, 0));
-        namePanel.setBackground(new Color(175, 238, 238));
+        inner.add(backBtn);
+        inner.add(title);
 
-        JPanel firstNamePanel = new JPanel();
-        firstNamePanel.setLayout(new BoxLayout(firstNamePanel, BoxLayout.Y_AXIS));
-        firstNamePanel.setBackground(new Color(175, 238, 238));
-        JLabel firstNameLabel = new JLabel("First Name");
-        firstNameLabel.setForeground(new Color(100, 200, 200));
-        firstNameField = new JTextField();
-        firstNameField.setPreferredSize(new Dimension(200, 35));
-        firstNameField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-        firstNamePanel.add(firstNameLabel);
-        firstNamePanel.add(firstNameField);
+        wrap.add(inner, BorderLayout.CENTER);
+        return wrap;
+    }
 
-        JPanel lastNamePanel = new JPanel();
-        lastNamePanel.setLayout(new BoxLayout(lastNamePanel, BoxLayout.Y_AXIS));
-        lastNamePanel.setBackground(new Color(175, 238, 238));
-        JLabel lastNameLabel = new JLabel("Last Name");
-        lastNameLabel.setForeground(new Color(100, 200, 200));
-        lastNameField = new JTextField();
-        lastNameField.setPreferredSize(new Dimension(200, 35));
-        lastNameField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-        lastNamePanel.add(lastNameLabel);
-        lastNamePanel.add(lastNameField);
+    // ══════════════════════════════════════════════════════════════════════════
+    // LEFT COLUMN CARDS
+    // ══════════════════════════════════════════════════════════════════════════
 
-        namePanel.add(firstNamePanel);
-        namePanel.add(lastNamePanel);
-        panel.add(namePanel);
-        panel.add(Box.createVerticalStrut(15));
+    // ── 1. Contact Information ────────────────────────────────────────────────
+    private JPanel buildContactCard() {
+        ShadowPanel card = new ShadowPanel();
+        JPanel inner = new JPanel(new GridBagLayout());
+        inner.setOpaque(false);
+        inner.setBorder(new EmptyBorder(26, 26, 26, 26));
 
-        // Phone
-        JPanel phonePanel = new JPanel();
-        phonePanel.setLayout(new BoxLayout(phonePanel, BoxLayout.Y_AXIS));
-        phonePanel.setBackground(new Color(175, 238, 238));
-        phonePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        JLabel phoneLabel = new JLabel("Phone");
-        phoneLabel.setForeground(new Color(100, 200, 200));
-        phoneField = new JTextField();
-        phoneField.setPreferredSize(new Dimension(250, 35));
-        phoneField.setMaximumSize(new Dimension(250, 35));
-        phonePanel.add(phoneLabel);
-        phonePanel.add(phoneField);
-        panel.add(phonePanel);
-        panel.add(Box.createVerticalStrut(25));
+        GridBagConstraints g = new GridBagConstraints();
+        g.fill = GridBagConstraints.HORIZONTAL;
+        g.weightx = 1.0;
+        g.insets = new Insets(0, 0, 6, 0);
 
-        // 2. Special Instructions
-        JLabel specialLabel = new JLabel("2. Special Instructions");
-        specialLabel.setFont(new Font("Arial", Font.BOLD, 14));
-        panel.add(specialLabel);
-        panel.add(Box.createVerticalStrut(10));
+        // Section label
+        JLabel sectionLabel = buildSectionLabel("1. Contact Information");
+        g.gridx = 0;
+        g.gridy = 0;
+        g.gridwidth = 2;
+        inner.add(sectionLabel, g);
 
-        specialInstructionsArea = new JTextArea(6, 40);
+        g.gridwidth = 1;
+        g.insets = new Insets(14, 0, 0, 12);
+        g.gridy = 1;
+        g.gridx = 0;
+        inner.add(buildFieldGroup("First Name", firstNameField = makeTextField("First name")), g);
+        g.gridx = 1;
+        g.insets = new Insets(14, 0, 0, 0);
+        inner.add(buildFieldGroup("Last Name", lastNameField = makeTextField("Last name")), g);
+
+        g.gridx = 0;
+        g.gridy = 2;
+        g.gridwidth = 1;
+        g.insets = new Insets(14, 0, 0, 12);
+        inner.add(buildFieldGroup("Phone", phoneField = makeTextField("09XX-XXX-XXXX")), g);
+
+        card.add(inner);
+        return card;
+    }
+
+    // ── 2. Special Instructions ───────────────────────────────────────────────
+    private JPanel buildInstructionsCard() {
+        ShadowPanel card = new ShadowPanel();
+        JPanel inner = new JPanel(new BorderLayout(0, 14));
+        inner.setOpaque(false);
+        inner.setBorder(new EmptyBorder(26, 26, 26, 26));
+
+        inner.add(buildSectionLabel("2. Special Instructions"), BorderLayout.NORTH);
+
+        specialInstructionsArea = new JTextArea(5, 20);
+        specialInstructionsArea.setFont(UIStyle.REGULAR);
         specialInstructionsArea.setLineWrap(true);
         specialInstructionsArea.setWrapStyleWord(true);
-        JScrollPane scrollPane = new JScrollPane(specialInstructionsArea);
-        scrollPane.setPreferredSize(new Dimension(450, 130));
-        scrollPane.setMaximumSize(new Dimension(Integer.MAX_VALUE, 130));
-        panel.add(scrollPane);
-        panel.add(Box.createVerticalStrut(25));
+        specialInstructionsArea.setBorder(new EmptyBorder(8, 12, 8, 12));
+        specialInstructionsArea.setBackground(new Color(248, 250, 252));
+        specialInstructionsArea.setOpaque(true);
 
-        // 3. Payment Method
-        JLabel paymentLabel = new JLabel("3. Payment Method");
-        paymentLabel.setFont(new Font("Arial", Font.BOLD, 14));
-        panel.add(paymentLabel);
-        panel.add(Box.createVerticalStrut(10));
+        JScrollPane areaScroll = new JScrollPane(specialInstructionsArea);
+        areaScroll.setBorder(null);
+        areaScroll.setOpaque(false);
+        areaScroll.getViewport().setOpaque(false);
+        areaScroll.getVerticalScrollBar().setUI(new Scrollbar());
+        areaScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 
-        paymentGroup = new ButtonGroup();
-
-        // Cash option
-        JPanel cashPanel = new JPanel(new BorderLayout());
-        cashPanel.setBackground(Color.WHITE);
-        cashPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1),
-                BorderFactory.createEmptyBorder(10, 15, 10, 15)));
-        cashPanel.setPreferredSize(new Dimension(450, 50));
-        cashPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
-
-        JLabel cashIcon = new JLabel("₱");
-        cashIcon.setFont(new Font("Arial", Font.BOLD, 24));
-        cashIcon.setPreferredSize(new Dimension(40, 40));
-        cashIcon.setHorizontalAlignment(SwingConstants.CENTER);
-        cashIcon.setBackground(Color.WHITE);
-        cashIcon.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-        cashIcon.setOpaque(true);
-
-        JLabel cashLabel = new JLabel("Cash");
-        cashLabel.setFont(new Font("Arial", Font.PLAIN, 14));
-
-        cashRadio = new JRadioButton();
-        cashRadio.setSelected(true);
-        cashRadio.setBackground(Color.WHITE);
-
-        JPanel cashLeftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
-        cashLeftPanel.setBackground(Color.WHITE);
-        cashLeftPanel.add(cashIcon);
-        cashLeftPanel.add(cashLabel);
-
-        cashPanel.add(cashLeftPanel, BorderLayout.WEST);
-        cashPanel.add(cashRadio, BorderLayout.EAST);
-        paymentGroup.add(cashRadio);
-
-        panel.add(cashPanel);
-        panel.add(Box.createVerticalStrut(15));
-
-        // GCash option
-        JPanel gcashPanel = new JPanel(new BorderLayout());
-        gcashPanel.setBackground(Color.WHITE);
-        gcashPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1),
-                BorderFactory.createEmptyBorder(10, 15, 10, 15)));
-        gcashPanel.setPreferredSize(new Dimension(450, 50));
-        gcashPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
-
-        JLabel gcashIcon = new JLabel("G");
-        gcashIcon.setFont(new Font("Arial", Font.BOLD, 18));
-        gcashIcon.setForeground(Color.WHITE);
-        gcashIcon.setPreferredSize(new Dimension(40, 40));
-        gcashIcon.setHorizontalAlignment(SwingConstants.CENTER);
-        gcashIcon.setBackground(new Color(0, 122, 255));
-        gcashIcon.setBorder(BorderFactory.createLineBorder(new Color(0, 122, 255), 1));
-        gcashIcon.setOpaque(true);
-
-        JLabel gcashLabel = new JLabel("G-CASH");
-        gcashLabel.setFont(new Font("Arial", Font.PLAIN, 14));
-
-        gcashRadio = new JRadioButton();
-        gcashRadio.setBackground(Color.WHITE);
-
-        JPanel gcashLeftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
-        gcashLeftPanel.setBackground(Color.WHITE);
-        gcashLeftPanel.add(gcashIcon);
-        gcashLeftPanel.add(gcashLabel);
-
-        gcashPanel.add(gcashLeftPanel, BorderLayout.WEST);
-        gcashPanel.add(gcashRadio, BorderLayout.EAST);
-        paymentGroup.add(gcashRadio);
-
-        panel.add(gcashPanel);
-
-        return panel;
-    }
-
-    private JPanel createRightPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BorderLayout());
-        panel.setBackground(Color.WHITE);
-        panel.setPreferredSize(new Dimension(300, 0));
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-
-        // Order summary content
-        JPanel contentPanel = new JPanel();
-        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
-        contentPanel.setBackground(Color.WHITE);
-
-        // Service header
-        JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
-        headerPanel.setBackground(new Color(230, 240, 255));
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-        JLabel iconLabel = new JLabel("🧺");
-        iconLabel.setFont(new Font("Arial", Font.PLAIN, 24));
-
-        JPanel textPanel = new JPanel();
-        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
-        textPanel.setBackground(new Color(230, 240, 255));
-
-        JLabel serviceLabel = new JLabel("Spin Laundromat Service");
-        serviceLabel.setFont(new Font("Arial", Font.BOLD, 12));
-
-        JLabel addressLabel = new JLabel(
-                "<html>148 Garrick st., Brgy. 165, Zone 20,<br>Rivera Village NAA Pasay City</html>");
-        addressLabel.setFont(new Font("Arial", Font.PLAIN, 9));
-        addressLabel.setForeground(Color.GRAY);
-
-        textPanel.add(serviceLabel);
-        textPanel.add(addressLabel);
-
-        headerPanel.add(iconLabel);
-        headerPanel.add(textPanel);
-        contentPanel.add(headerPanel);
-        contentPanel.add(Box.createVerticalStrut(20));
-
-        // Order number
-        JLabel orderLabel = new JLabel("Order #001");
-        orderLabel.setFont(new Font("Arial", Font.BOLD, 18));
-        orderLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        contentPanel.add(orderLabel);
-        contentPanel.add(Box.createVerticalStrut(20));
-
-        // Quantity and items in cart
-        orderSummaryLabel = new JLabel("x" + cartItems.size());
-        orderSummaryLabel.setFont(new Font("Arial", Font.PLAIN, 14));
-        orderSummaryLabel.setForeground(Color.GRAY);
-        contentPanel.add(orderSummaryLabel);
-
-        contentPanel.add(Box.createVerticalStrut(15));
-
-        // Cart items list
-        for (LaundryPOS.Item item : cartItems) {
-            double itemTotal = item.price * (item.qty / 7.0);
-
-            JLabel itemLabel = new JLabel(item.name + " x" + item.qty + "kg - ₱" + String.format("%.2f", itemTotal));
-            itemLabel.setFont(new Font("Arial", Font.PLAIN, 11));
-            itemLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-            contentPanel.add(itemLabel);
-        }
-
-        contentPanel.add(Box.createVerticalStrut(15));
-
-        // Totals
-        JLabel subtotalLabel = new JLabel("Subtotal: ₱" + String.format("%.2f", subtotal));
-        subtotalLabel.setFont(new Font("Arial", Font.PLAIN, 12));
-        subtotalLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        contentPanel.add(subtotalLabel);
-
-        JLabel taxLabel = new JLabel("Tax(12%): ₱" + String.format("%.2f", tax));
-        taxLabel.setFont(new Font("Arial", Font.PLAIN, 12));
-        taxLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        contentPanel.add(taxLabel);
-
-        double total = subtotal + tax;
-        JLabel totalLabel = new JLabel("Total: ₱" + String.format("%.2f", total));
-        totalLabel.setFont(new Font("Arial", Font.BOLD, 14));
-        totalLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        contentPanel.add(totalLabel);
-
-        panel.add(contentPanel, BorderLayout.NORTH);
-
-        // Confirm button at bottom
-        JButton confirmButton = new JButton("Confirm Checkout");
-        confirmButton.setBackground(new Color(34, 197, 94));
-        confirmButton.setForeground(Color.BLACK);
-        confirmButton.setFont(new Font("Arial", Font.BOLD, 14));
-        confirmButton.setFocusPainted(false);
-        confirmButton.setBorderPainted(false);
-        confirmButton.setPreferredSize(new Dimension(260, 45));
-        confirmButton.addActionListener(e -> {
-            String paymentMethod = cashRadio.isSelected() ? "Cash" : "G-CASH";
-
-            // Show confirmation message
-            String message = """
-                    Order confirmed!
-                    Name: """ + firstNameField.getText() + " " + lastNameField.getText() + """
-
-                    Phone: """ + phoneField.getText() + """
-
-                    Payment: """ + paymentMethod + """
-
-                    Total: ₱""" + String.format("%.2f", subtotal + tax);
-
-            JOptionPane.showMessageDialog(CheckoutScreen.this,
-                    message,
-                    "Checkout Confirmed",
-                    JOptionPane.INFORMATION_MESSAGE);
-
-            // Clear cart in parent POS
-            if (parentFrame != null) {
-                parentFrame.clearCart();
+        // Rounded wrapper panel — blue border on focus, same as input fields
+        boolean[] areaFocused = { false };
+        JPanel areaWrap = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(248, 250, 252));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 24, 24);
+                g2.setColor(areaFocused[0] ? UIStyle.PRIMARY : UIStyle.INPUT_BORDER);
+                g2.setStroke(areaFocused[0] ? new BasicStroke(1.8f) : new BasicStroke(1.2f));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 24, 24);
+                g2.dispose();
+            }
+        };
+        areaWrap.setOpaque(false);
+        specialInstructionsArea.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusGained(java.awt.event.FocusEvent e) {
+                areaFocused[0] = true;
+                areaWrap.repaint();
             }
 
-            // Close the checkout dialog
-            Window window = SwingUtilities.getWindowAncestor(CheckoutScreen.this);
-            if (window != null) {
-                window.dispose();
+            @Override
+            public void focusLost(java.awt.event.FocusEvent e) {
+                areaFocused[0] = false;
+                areaWrap.repaint();
             }
         });
+        areaWrap.add(areaScroll, BorderLayout.CENTER);
 
-        panel.add(confirmButton, BorderLayout.SOUTH);
+        inner.add(areaWrap, BorderLayout.CENTER);
+        card.add(inner);
+        return card;
+    }
 
-        return panel;
+    // ── 3. Payment Method ─────────────────────────────────────────────────────
+    private JPanel buildPaymentCard() {
+        ShadowPanel card = new ShadowPanel();
+        JPanel inner = new JPanel(new BorderLayout(0, 14));
+        inner.setOpaque(false);
+        inner.setBorder(new EmptyBorder(26, 26, 26, 26));
+
+        inner.add(buildSectionLabel("3. Payment Method"), BorderLayout.NORTH);
+
+        paymentGroup = new ButtonGroup();
+        JPanel optionsRow = new JPanel(new GridLayout(1, 2, 14, 0));
+        optionsRow.setOpaque(false);
+
+        cashRadio = buildPaymentOption("Cash", buildCashIcon(), true);
+        gcashRadio = buildPaymentOption("G-CASH", buildGcashIcon(), false);
+
+        optionsRow.add(cashRadio.getParent());
+        optionsRow.add(gcashRadio.getParent());
+
+        inner.add(optionsRow, BorderLayout.CENTER);
+        card.add(inner);
+        return card;
+    }
+
+    /** Builds one payment tile and returns its JRadioButton. */
+    private JRadioButton buildPaymentOption(String label, JComponent iconComp, boolean selected) {
+        // Tile panel
+        JPanel tile = new JPanel(new BorderLayout(14, 0)) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Color.WHITE);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 14, 14);
+                g2.setColor(UIStyle.INPUT_BORDER);
+                g2.setStroke(new BasicStroke(1.2f));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 14, 14);
+                g2.dispose();
+            }
+        };
+        tile.setOpaque(false);
+        tile.setBorder(new EmptyBorder(14, 16, 14, 16));
+        tile.add(iconComp, BorderLayout.WEST);
+
+        JLabel lbl = new JLabel(label);
+        lbl.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        lbl.setForeground(UIStyle.TEXT_PRIMARY);
+        tile.add(lbl, BorderLayout.CENTER);
+
+        JRadioButton rb = new JRadioButton();
+        rb.setSelected(selected);
+        rb.setOpaque(false);
+        rb.setUI(new BasicRadioButtonUI() {
+            @Override
+            public synchronized void paint(Graphics g, JComponent c) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                int sz = 18, x = (c.getWidth() - sz) / 2, y = (c.getHeight() - sz) / 2;
+                g2.setColor(Color.WHITE);
+                g2.fillOval(x, y, sz, sz);
+                g2.setColor(UIStyle.INPUT_BORDER);
+                g2.drawOval(x, y, sz, sz);
+                if (((AbstractButton) c).getModel().isSelected()) {
+                    g2.setColor(UIStyle.PRIMARY);
+                    g2.fillOval(x + 4, y + 4, sz - 8, sz - 8);
+                }
+                g2.dispose();
+            }
+        });
+        paymentGroup.add(rb);
+        tile.add(rb, BorderLayout.EAST);
+        return rb;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // RIGHT COLUMN – ORDER SUMMARY CARD
+    // ══════════════════════════════════════════════════════════════════════════
+    private JPanel buildOrderSummaryCard() {
+        ShadowPanel card = new ShadowPanel();
+        card.setPreferredSize(new Dimension(340, 0));
+
+        JPanel inner = new JPanel(new BorderLayout(0, 0));
+        inner.setOpaque(false);
+        inner.setBorder(new EmptyBorder(0, 0, 0, 0));
+
+        // ── TOP: Store branding banner ────────────────────────────────────────
+        JPanel brandBanner = buildBrandBanner();
+        inner.add(brandBanner, BorderLayout.NORTH);
+
+        // ── CENTER: Order number + items + totals ─────────────────────────────
+        JPanel centerPanel = new JPanel();
+        centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
+        centerPanel.setOpaque(false);
+        centerPanel.setBorder(new EmptyBorder(16, 22, 16, 22));
+
+        // Order number chip
+        JPanel orderChip = buildOrderChip();
+        centerPanel.add(orderChip);
+        centerPanel.add(Box.createVerticalStrut(16));
+
+        // Items
+        for (LaundryPOS.Item item : cartItems) {
+            centerPanel.add(summaryRow(
+                    item.name + " (x" + item.qty + "kg)",
+                    "₱" + String.format("%.2f", item.price * item.qty),
+                    false));
+            centerPanel.add(Box.createVerticalStrut(8));
+        }
+        if (cartItems.isEmpty()) {
+            JLabel empty = new JLabel("No items in cart.");
+            empty.setFont(UIStyle.SMALL);
+            empty.setForeground(UIStyle.TEXT_SECONDARY);
+            centerPanel.add(empty);
+        }
+
+        centerPanel.add(Box.createVerticalStrut(16));
+
+        // Separator
+        centerPanel.add(buildDivider());
+        centerPanel.add(Box.createVerticalStrut(14));
+
+        // Subtotal / Tax
+        centerPanel.add(summaryRow("Subtotal", "₱" + String.format("%.2f", subtotal), false));
+        centerPanel.add(Box.createVerticalStrut(6));
+        centerPanel.add(summaryRow("Tax (12%)", "₱" + String.format("%.2f", tax), false));
+        centerPanel.add(Box.createVerticalStrut(14));
+
+        // Total row
+        JPanel totalRow = new JPanel(new BorderLayout());
+        totalRow.setOpaque(false);
+        totalRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+
+        JLabel totalLbl = new JLabel("TOTAL");
+        totalLbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        totalLbl.setForeground(UIStyle.TEXT_SECONDARY);
+
+        JLabel totalAmt = new JLabel("₱" + String.format("%.2f", subtotal + tax));
+        totalAmt.setFont(new Font("Segoe UI", Font.BOLD, 24));
+        totalAmt.setForeground(UIStyle.PRIMARY);
+
+        totalRow.add(totalLbl, BorderLayout.WEST);
+        totalRow.add(totalAmt, BorderLayout.EAST);
+
+        centerPanel.add(totalRow);
+        inner.add(centerPanel, BorderLayout.CENTER);
+
+        // ── BOTTOM: Confirm button ────────────────────────────────────────────
+        JPanel btnWrap = new JPanel(new BorderLayout());
+        btnWrap.setOpaque(false);
+        btnWrap.setBorder(new EmptyBorder(0, 22, 22, 22));
+
+        JButton confirmBtn = new JButton("Confirm Checkout") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                Color c = getModel().isRollover() ? new Color(22, 163, 74) : UIStyle.SUCCESS;
+                g2.setColor(c);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 14, 14);
+                g2.setColor(Color.WHITE);
+                g2.setFont(getFont());
+                FontMetrics fm = g2.getFontMetrics();
+                int x = (getWidth() - fm.stringWidth(getText())) / 2;
+                int y = ((getHeight() - fm.getHeight()) / 2) + fm.getAscent();
+                g2.drawString(getText(), x, y);
+                g2.dispose();
+            }
+        };
+        confirmBtn.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        confirmBtn.setPreferredSize(new Dimension(0, 50));
+        confirmBtn.setContentAreaFilled(false);
+        confirmBtn.setBorderPainted(false);
+        confirmBtn.setFocusPainted(false);
+        confirmBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        confirmBtn.addActionListener(e -> processOrder());
+
+        btnWrap.add(confirmBtn, BorderLayout.CENTER);
+        inner.add(btnWrap, BorderLayout.SOUTH);
+
+        card.add(inner);
+        return card;
+    }
+
+    /** Store logo + name + address block at top of summary card. */
+    private JPanel buildBrandBanner() {
+        JPanel banner = new JPanel(new BorderLayout(12, 0)) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                // gentle gradient background
+                GradientPaint gp = new GradientPaint(
+                        0, 0, new Color(219, 234, 254),
+                        0, getHeight(), new Color(207, 250, 254));
+                g2.setPaint(gp);
+                // round only the top corners
+                g2.fillRoundRect(0, 0, getWidth(), getHeight() + 20, 18, 18);
+                g2.dispose();
+            }
+        };
+        banner.setOpaque(false);
+        banner.setBorder(new EmptyBorder(18, 20, 18, 20));
+
+        // Icon
+        JLabel iconLbl = new JLabel();
+        try {
+            java.net.URL url = getClass().getResource("/src/resources/images/store.png");
+            if (url != null) {
+                ImageIcon ic = new ImageIcon(url);
+                Image img = ic.getImage().getScaledInstance(38, 38, Image.SCALE_SMOOTH);
+                iconLbl.setIcon(new ImageIcon(img));
+            } else {
+                iconLbl.setText("🧺");
+                iconLbl.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 26));
+            }
+        } catch (Exception e) {
+            iconLbl.setText("🧺");
+            iconLbl.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 26));
+        }
+
+        // Name + address
+        JPanel textBlock = new JPanel();
+        textBlock.setLayout(new BoxLayout(textBlock, BoxLayout.Y_AXIS));
+        textBlock.setOpaque(false);
+
+        JLabel nameLabel = new JLabel(STORE_NAME);
+        nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        nameLabel.setForeground(UIStyle.TEXT_PRIMARY);
+
+        JLabel addrLabel = new JLabel(
+                "<html><div style='line-height:1.4'>" + STORE_ADDRESS.replace("\n", "<br>") + "</div></html>");
+        addrLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        addrLabel.setForeground(UIStyle.TEXT_SECONDARY);
+
+        textBlock.add(nameLabel);
+        textBlock.add(Box.createVerticalStrut(3));
+        textBlock.add(addrLabel);
+
+        banner.add(iconLbl, BorderLayout.WEST);
+        banner.add(textBlock, BorderLayout.CENTER);
+        return banner;
+    }
+
+    /** "Order #001" chip displayed just below the brand banner. */
+    private JPanel buildOrderChip() {
+        JPanel chip = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        chip.setOpaque(false);
+        chip.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
+
+        JLabel orderLbl = new JLabel(orderNumber);
+        orderLbl.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        orderLbl.setForeground(UIStyle.TEXT_PRIMARY);
+        chip.add(orderLbl);
+        return chip;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // PAYMENT ICON HELPERS
+    // ══════════════════════════════════════════════════════════════════════════
+
+    /** Peso-sign icon circle (Cash). */
+    private JComponent buildCashIcon() {
+        JPanel circle = new JPanel(new GridBagLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(241, 245, 249));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
+                g2.dispose();
+            }
+        };
+        circle.setOpaque(false);
+        circle.setPreferredSize(new Dimension(40, 40));
+        JLabel lbl = new JLabel("₱");
+        lbl.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        lbl.setForeground(UIStyle.PRIMARY);
+        circle.add(lbl);
+        return circle;
+    }
+
+    /** G·Cash logo-like icon. */
+    private JComponent buildGcashIcon() {
+        JPanel box = new JPanel(new GridBagLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                // GCash brand blue
+                g2.setColor(new Color(0, 119, 196));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
+                g2.dispose();
+            }
+        };
+        box.setOpaque(false);
+        box.setPreferredSize(new Dimension(40, 40));
+        JLabel lbl = new JLabel("G");
+        lbl.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        lbl.setForeground(Color.WHITE);
+        box.add(lbl);
+        return box;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // SHARED MINI-COMPONENTS
+    // ══════════════════════════════════════════════════════════════════════════
+
+    private JLabel buildSectionLabel(String text) {
+        JLabel lbl = new JLabel(text);
+        lbl.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        lbl.setForeground(UIStyle.TEXT_SECONDARY);
+        return lbl;
+    }
+
+    private JPanel buildFieldGroup(String label, JTextField field) {
+        JPanel p = new JPanel(new BorderLayout(0, 7));
+        p.setOpaque(false);
+        JLabel l = new JLabel(label);
+        l.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        l.setForeground(UIStyle.TEXT_SECONDARY);
+        p.add(l, BorderLayout.NORTH);
+        p.add(field, BorderLayout.CENTER);
+        return p;
+    }
+
+    private JTextField makeTextField(String placeholder) {
+        // Rounded text field via custom paintComponent
+        JTextField f = new JTextField() {
+            private static final int R = 12;
+
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getBackground());
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), R * 2, R * 2);
+                // clip text inside rounded rect
+                g2.setClip(new java.awt.geom.RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), R * 2, R * 2));
+                super.paintComponent(g2);
+                g2.dispose();
+            }
+
+            @Override
+            protected void paintBorder(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(isFocusOwner() ? UIStyle.PRIMARY : UIStyle.INPUT_BORDER);
+                g2.setStroke(isFocusOwner() ? new BasicStroke(1.8f) : new BasicStroke(1.2f));
+                g2.drawRoundRect(1, 1, getWidth() - 2, getHeight() - 2, R * 2, R * 2);
+                g2.dispose();
+            }
+        };
+        f.setFont(UIStyle.REGULAR);
+        f.setPreferredSize(new Dimension(0, 44));
+        f.setBorder(new EmptyBorder(0, 14, 0, 14));
+        f.setBackground(Color.WHITE);
+        f.setForeground(UIStyle.TEXT_PRIMARY);
+        f.setCaretColor(UIStyle.PRIMARY);
+        f.setOpaque(false);
+        return f;
+    }
+
+    private JPanel summaryRow(String label, String value, boolean bold) {
+        JPanel p = new JPanel(new BorderLayout());
+        p.setOpaque(false);
+        p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 26));
+
+        JLabel l = new JLabel(label);
+        l.setFont(bold
+                ? new Font("Segoe UI", Font.BOLD, 13)
+                : new Font("Segoe UI", Font.PLAIN, 13));
+        l.setForeground(UIStyle.TEXT_SECONDARY);
+
+        JLabel v = new JLabel(value);
+        v.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        v.setForeground(UIStyle.TEXT_PRIMARY);
+
+        p.add(l, BorderLayout.WEST);
+        p.add(v, BorderLayout.EAST);
+        return p;
+    }
+
+    private JSeparator buildDivider() {
+        JSeparator sep = new JSeparator();
+        sep.setForeground(UIStyle.INPUT_BORDER);
+        sep.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+        return sep;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // BUSINESS LOGIC
+    // ══════════════════════════════════════════════════════════════════════════
+
+    private String generateOrderNumber() {
+        int num = 1 + new Random().nextInt(999);
+        return String.format("Order #%03d", num);
+    }
+
+    private void processOrder() {
+        String payment = cashRadio.isSelected() ? "Cash" : "G-CASH";
+        String name = firstNameField.getText().trim() + " " + lastNameField.getText().trim();
+
+        if (name.isBlank()) {
+            JOptionPane.showMessageDialog(this,
+                    "Please enter your name.", "Required Field",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String msg = "✅ Order Confirmed!\n\n"
+                + orderNumber + "\n"
+                + "Customer : " + name + "\n"
+                + "Phone    : " + phoneField.getText() + "\n"
+                + "Payment  : " + payment + "\n"
+                + "Total    : ₱" + String.format("%.2f", subtotal + tax);
+        JOptionPane.showMessageDialog(this, msg,
+                "Order Placed Successfully", JOptionPane.INFORMATION_MESSAGE);
+
+        if (parentFrame != null)
+            parentFrame.clearCart();
+        Window w = SwingUtilities.getWindowAncestor(this);
+        if (w != null)
+            w.dispose();
     }
 }
