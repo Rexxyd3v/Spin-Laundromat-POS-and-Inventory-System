@@ -6,13 +6,15 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.plaf.basic.BasicArrowButton;
 import javax.swing.plaf.basic.BasicComboBoxUI;
 import javax.swing.table.DefaultTableCellRenderer;
 import src.model.User;
-import src.util.config.UIStyle;
-import src.util.components.ShadowPanel;
 import src.util.components.Scrollbar;
+import src.util.components.ShadowPanel;
+import src.util.config.UIStyle;
 
 /**
  * User Management Panel integrated into main UI
@@ -21,6 +23,7 @@ public class UserManagementPanel extends JPanel {
         private UserTableModel tableModel;
         private JTable userTable;
         private JPanel statsPanel;
+        private List<User> allUsers; // Keep original list for filtering
         private UserManagementPanel.StatCard totalAccountsCard;
         private UserManagementPanel.StatCard activeAccountsCard;
         private UserManagementPanel.StatCard administratorsCard;
@@ -62,33 +65,33 @@ public class UserManagementPanel extends JPanel {
         }
 
         private void initializeSampleData() {
-                List<User> users = new ArrayList<>();
+                allUsers = new ArrayList<>();
 
-                users.add(new User("101", "Jefferson Padua", "0912-345-6789",
+                allUsers.add(new User("101", "Jefferson Padua", "0912-345-6789",
                                 User.UserRole.ADMIN, true,
                                 LocalDate.of(2025, 12, 10), LocalDate.of(2026, 2, 21)));
 
-                users.add(new User("102", "Lester M. Estranja", "0917-555-0123",
+                allUsers.add(new User("102", "Lester M. Estranja", "0917-555-0123",
                                 User.UserRole.STAFF, true,
                                 LocalDate.of(2026, 1, 15), LocalDate.of(2026, 2, 20)));
 
-                users.add(new User("103", "Krizza Dela Cruz", "0920-888-4321",
+                allUsers.add(new User("103", "Krizza Dela Cruz", "0920-888-4321",
                                 User.UserRole.STAFF, true,
                                 LocalDate.of(2026, 1, 20), LocalDate.of(2026, 2, 19)));
 
-                users.add(new User("104", "Khinito Perlamarte", "0915-999-7777",
+                allUsers.add(new User("104", "Khinito Perlamarte", "0915-999-7777",
                                 User.UserRole.STAFF, false,
                                 LocalDate.of(2026, 2, 01), LocalDate.of(2026, 2, 05)));
 
-                users.add(new User("105", "Maria Santos", "0918-111-2222",
+                allUsers.add(new User("105", "Maria Santos", "0918-111-2222",
                                 User.UserRole.ADMIN, true,
                                 LocalDate.of(2025, 11, 20), LocalDate.of(2026, 2, 21)));
 
-                users.add(new User("106", "Juan Dela Cruz", "0922-333-4444",
+                allUsers.add(new User("106", "Juan Dela Cruz", "0922-333-4444",
                                 User.UserRole.STAFF, true,
                                 LocalDate.of(2026, 2, 10), LocalDate.of(2026, 2, 21)));
 
-                tableModel = new UserTableModel(users);
+                tableModel = new UserTableModel(new ArrayList<>(allUsers));
         }
 
         private JPanel createHeaderPanel() {
@@ -248,6 +251,24 @@ public class UserManagementPanel extends JPanel {
                 searchPill.add(searchIcon, BorderLayout.WEST);
                 searchPill.add(searchField, BorderLayout.CENTER);
 
+                // Add DocumentListener for real-time search
+                searchField.getDocument().addDocumentListener(new DocumentListener() {
+                        @Override
+                        public void insertUpdate(DocumentEvent e) {
+                                performSearch(searchField.getText());
+                        }
+
+                        @Override
+                        public void removeUpdate(DocumentEvent e) {
+                                performSearch(searchField.getText());
+                        }
+
+                        @Override
+                        public void changedUpdate(DocumentEvent e) {
+                                performSearch(searchField.getText());
+                        }
+                });
+
                 // Role filter pill
                 JPanel filterPill = new JPanel(new BorderLayout()) {
                         @Override
@@ -293,6 +314,9 @@ public class UserManagementPanel extends JPanel {
                 });
 
                 filterPill.add(roleFilter, BorderLayout.CENTER);
+
+                // Add listener for role filter
+                roleFilter.addActionListener(e -> filterUsersByRole((String) roleFilter.getSelectedItem()));
 
                 searchRow.add(searchPill, BorderLayout.CENTER);
                 searchRow.add(filterPill, BorderLayout.EAST);
@@ -396,13 +420,13 @@ public class UserManagementPanel extends JPanel {
                 }
 
                 // Cell renderers
-                userTable.getColumnModel().getColumn(0).setCellRenderer(new UserTableRenderers.UserCellRenderer());
+               userTable.getColumnModel().getColumn(0).setCellRenderer(new UserTableRenderers.UserCellRenderer());
                 userTable.getColumnModel().getColumn(1).setCellRenderer(new UserTableRenderers.RoleCellRenderer());
                 userTable.getColumnModel().getColumn(2).setCellRenderer(new UserTableRenderers.StatusCellRenderer());
                 userTable.getColumnModel().getColumn(3).setCellRenderer(new UserTableRenderers.DateCellRenderer());
                 userTable.getColumnModel().getColumn(4).setCellRenderer(new UserTableRenderers.DateCellRenderer());
                 userTable.getColumnModel().getColumn(5).setCellRenderer(new UserTableRenderers.ActionCellRenderer());
-
+                userTable.getColumnModel().getColumn(5).setCellEditor(new UserTableRenderers.ActionCellEditor());
                 // Column widths
                 userTable.getColumnModel().getColumn(0).setPreferredWidth(240);
                 userTable.getColumnModel().getColumn(1).setPreferredWidth(140);
@@ -541,6 +565,52 @@ public class UserManagementPanel extends JPanel {
                         return tableModel.getUserAt(selectedRow);
                 }
                 return null;
+        }
+
+        private void filterUsersByRole(String selectedRole) {
+                List<User> filteredUsers = new ArrayList<>();
+
+                if (selectedRole.equals("All Roles")) {
+                        filteredUsers.addAll(allUsers);
+                } else if (selectedRole.equals("Admin")) {
+                        for (User user : allUsers) {
+                                if (user.getRole() == User.UserRole.ADMIN) {
+                                        filteredUsers.add(user);
+                                }
+                        }
+                } else if (selectedRole.equals("Staff")) {
+                        for (User user : allUsers) {
+                                if (user.getRole() == User.UserRole.STAFF) {
+                                        filteredUsers.add(user);
+                                }
+                        }
+                }
+
+                // Update the table model with filtered data
+                tableModel.setUsers(filteredUsers);
+                tableModel.fireTableDataChanged();
+        }
+
+        private void performSearch(String query) {
+                String searchQuery = query.trim().toLowerCase();
+
+                // If search is empty, show all users
+                if (searchQuery.isEmpty() || searchQuery.equals("search users...")) {
+                        tableModel.setUsers(new ArrayList<>(allUsers));
+                        tableModel.fireTableDataChanged();
+                        return;
+                }
+
+                // Search users by name (case-insensitive)
+                List<User> searchResults = new ArrayList<>();
+                for (User user : allUsers) {
+                        if (user.getName().toLowerCase().contains(searchQuery)) {
+                                searchResults.add(user);
+                        }
+                }
+
+                tableModel.setUsers(searchResults);
+                tableModel.fireTableDataChanged();
         }
 
         private void showAddUserDialog() {

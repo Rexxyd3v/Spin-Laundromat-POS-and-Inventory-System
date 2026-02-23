@@ -7,6 +7,11 @@ import java.awt.*;
 import src.model.User;
 import src.util.config.UIStyle;
 
+import javax.swing.table.TableCellEditor;
+
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
 /**
  * Custom cell renderers for the user table.
  * All renderers are JLabel-based (not JPanel) so columns
@@ -248,6 +253,57 @@ public class UserTableRenderers {
             return cell;
         }
     }
+    public static class ActionCellEditor extends AbstractCellEditor implements TableCellEditor {
+        private JButton button;
+        private User user;
+        private JTable table;
+        private int row;
+
+        public ActionCellEditor() {
+            button = new JButton();
+            try {
+                java.net.URL url = getClass().getResource("/src/resources/images/edit.png");
+                if (url != null) {
+                    Image img = new ImageIcon(url).getImage().getScaledInstance(24, 24, Image.SCALE_SMOOTH);
+                    button.setIcon(new ImageIcon(img));
+                }
+            } catch (Exception ignored) {}
+            button.setBorderPainted(false);
+            button.setContentAreaFilled(false);
+            button.setFocusPainted(false);
+            button.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    if (user != null && table != null) {
+                        EditUserDialog dialog = new EditUserDialog((Frame) SwingUtilities.getWindowAncestor(table), user);
+                        dialog.setVisible(true);
+                        if (dialog.isUpdated()) {
+                            // Refresh table or notify model
+                            ((UserTableModel) table.getModel()).fireTableRowsUpdated(row, row);
+                        } else if (dialog.isDeleted()) {
+                            ((UserTableModel) table.getModel()).removeUser(row);
+                        }
+                    }
+                    fireEditingStopped();
+                }
+            });
+        }
+
+         @Override
+        public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
+            this.table = table;
+            this.row = row;
+            this.user = ((UserTableModel) table.getModel()).getUserAt(row);
+            return button;
+        }
+
+        @Override
+        public Object getCellEditorValue() {
+            return "actions"; // Or whatever
+        }
+    }
+
+
 
     // ═════════════════════════════════════════════════════════════════════════
     // Private helper labels that paint their own backgrounds

@@ -13,9 +13,11 @@ public class UserTableModel extends AbstractTableModel {
     private final String[] columnNames = { "User", "Role", "Status", "Created", "Last Login", "Actions" };
     private List<User> users;
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
+    private List<User> allUsers; // Keep reference to all users for filtering
 
     public UserTableModel(List<User> users) {
         this.users = users != null ? users : new ArrayList<>();
+        this.allUsers = new ArrayList<>(this.users);
     }
 
     @Override
@@ -93,5 +95,9 @@ public class UserTableModel extends AbstractTableModel {
 
     public int getActiveCount() {
         return (int) users.stream().filter(User::isActive).count();
+    }
+
+    public void setUsers(List<User> filteredUsers) {
+        this.users = filteredUsers != null ? filteredUsers : new ArrayList<>();
     }
 }
