@@ -189,7 +189,14 @@ public class StockManagementPanel extends JPanel {
 
         JPanel actionP = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 10));
         actionP.setOpaque(false);
-        actionP.add(buildActionButton("Update Stock", GREEN_BTN, 140, 38));
+        JButton updateBtn = buildActionButton("Update Stock", GREEN_BTN, 140, 38);
+        updateBtn.addActionListener(e -> {
+            if (NotificationDialog.showUpdate(SwingUtilities.getWindowAncestor(actionP))) {
+                System.out.println("Stock Update Confirmed");
+                // Original update logic would go here
+            }
+        });
+        actionP.add(updateBtn);
         card.add(actionP, BorderLayout.SOUTH);
 
         return wrapInShadow(card);

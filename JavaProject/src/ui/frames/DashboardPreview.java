@@ -1,4 +1,5 @@
 package src.ui.frames;
+
 import java.awt.*;
 import javax.swing.*;
 import src.model.Staff;

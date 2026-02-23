@@ -15,8 +15,11 @@ public class LaundryInventorySystem extends JPanel {
 
     private JTable inventoryTable;
     private DefaultTableModel tableModel;
+    @SuppressWarnings("unused")
     private JComboBox<String> categoryCombo;
+    @SuppressWarnings("unused")
     private JComboBox<String> supplierCombo;
+    @SuppressWarnings("unused")
     private JComboBox<String> stockLevelCombo;
     private JTextField searchField;
 
@@ -355,9 +358,30 @@ public class LaundryInventorySystem extends JPanel {
     private JPanel buildActionPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 12));
         panel.setOpaque(false);
-        panel.add(buildActionButton("+ Add Product", GREEN_BTN));
-        panel.add(buildActionButton("Edit", BLUE_BTN));
-        panel.add(buildActionButton("Delete", RED_BTN));
+        JButton addBtn = buildActionButton("+ Add Product", GREEN_BTN);
+        addBtn.addActionListener(e -> {
+            if (AddProduct.showAddProduct(SwingUtilities.getWindowAncestor(panel))) {
+                System.out.println("Add Product Processed Successfully");
+            }
+        });
+        panel.add(addBtn);
+
+        JButton editBtn = buildActionButton("Edit", BLUE_BTN);
+        editBtn.addActionListener(e -> {
+            if (EditProduct.showEditProduct(SwingUtilities.getWindowAncestor(panel))) {
+                System.out.println("Update Product Processed Successfully");
+            }
+        });
+        panel.add(editBtn);
+
+        JButton deleteBtn = buildActionButton("Delete", RED_BTN);
+        deleteBtn.addActionListener(e -> {
+            if (NotificationDialog.showDelete(SwingUtilities.getWindowAncestor(panel))) {
+                System.out.println("Delete Product Confirmed");
+                // Original delete logic would go here
+            }
+        });
+        panel.add(deleteBtn);
         return panel;
     }
 
