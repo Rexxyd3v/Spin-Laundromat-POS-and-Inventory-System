@@ -116,7 +116,7 @@ public class ReceiptPanel extends JPanel {
         gbc.gridy = 0;
         branding.add(logoSquare, gbc);
 
-        JLabel storeName = new JLabel("Machine Wash");
+        JLabel storeName = new JLabel("Spin Laundromat Service");
         storeName.setFont(new Font("SansSerif", Font.BOLD, 18));
         storeName.setForeground(new Color(31, 41, 55));
         gbc.gridy = 1;

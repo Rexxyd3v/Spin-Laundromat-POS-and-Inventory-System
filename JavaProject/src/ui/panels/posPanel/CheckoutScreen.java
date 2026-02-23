@@ -26,7 +26,7 @@ public class CheckoutScreen extends JPanel {
     private String orderNumber;
 
     // ─── Brand Constants ─────────────────────────────────────────────────────
-    private static final String STORE_NAME = "Machine Wash";
+    private static final String STORE_NAME = "Spin Laundromat Service";
     private static final String STORE_ADDRESS = "143 Lamar St., Brgy. 164 Zone 13,\nRivera Village NAIA, Pasay City";
 
     public CheckoutScreen() {

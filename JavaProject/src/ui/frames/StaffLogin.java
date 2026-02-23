@@ -38,7 +38,7 @@ public class StaffLogin extends JFrame {
         iconContainer.setOpaque(false);
         iconContainer.add(createBrandIcon());
 
-        JLabel brandTitle = new JLabel("Machine Wash");
+        JLabel brandTitle = new JLabel("Spin Laundromat Service");
         brandTitle.setFont(new Font("SansSerif", Font.BOLD, 28));
         brandTitle.setForeground(BRAND_PURPLE);
         brandTitle.setAlignmentX(Component.CENTER_ALIGNMENT);

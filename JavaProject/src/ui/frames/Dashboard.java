@@ -20,7 +20,6 @@ public class Dashboard extends JFrame {
     private SidebarButton currentActiveBtn;
 
     public Dashboard() {
-        // Mock staff (Correct signature from Staff.java)
         this.staff = new Staff("0", "Admin", "password123");
 
         setTitle("Spin Laundromat Service - POS & Inventory System");
@@ -96,7 +95,7 @@ public class Dashboard extends JFrame {
         brandTextPanel.setBackground(Color.WHITE);
         brandTextPanel.setLayout(new BoxLayout(brandTextPanel, BoxLayout.Y_AXIS));
 
-        JLabel brandName = new JLabel("Machine Wash");
+        JLabel brandName = new JLabel("Spin Laundromat Service");
         brandName.setFont(new Font("SansSerif", Font.BOLD, 12));
         brandName.setForeground(UIStyle.TEXT_PRIMARY);
 
