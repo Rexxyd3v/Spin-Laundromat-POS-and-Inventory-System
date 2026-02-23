@@ -18,14 +18,12 @@ public class CheckoutScreen extends JPanel {
     private JTextArea specialInstructionsArea;
     private ButtonGroup paymentGroup;
     private JRadioButton cashRadio;
-    private JRadioButton gcashRadio;
     private ArrayList<LaundryPOS.Item> cartItems;
     private double subtotal;
     private double tax;
     private LaundryPOS parentFrame;
     private String orderNumber;
 
-    // ─── Brand Constants ─────────────────────────────────────────────────────
     private static final String STORE_NAME = "Spin Laundromat Service";
     private static final String STORE_ADDRESS = "143 Lamar St., Brgy. 164 Zone 13,\nRivera Village NAIA, Pasay City";
 
@@ -43,16 +41,12 @@ public class CheckoutScreen extends JPanel {
 
         setLayout(new BorderLayout());
         setBackground(UIStyle.BACKGROUND);
-
-        // ── Top Header (back button + title) ─────────────────────────────────
         add(buildHeader(), BorderLayout.NORTH);
 
-        // ── Two-column body wrapped in vertical-only scroll pane ─────────────
         JPanel body = new JPanel(new BorderLayout(28, 0));
         body.setOpaque(false);
         body.setBorder(new EmptyBorder(0, 48, 40, 48));
 
-        // Left: stacked form cards
         JPanel leftCol = new JPanel();
         leftCol.setLayout(new BoxLayout(leftCol, BoxLayout.Y_AXIS));
         leftCol.setOpaque(false);
@@ -77,9 +71,6 @@ public class CheckoutScreen extends JPanel {
         add(scroll, BorderLayout.CENTER);
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    // HEADER
-    // ══════════════════════════════════════════════════════════════════════════
     private JPanel buildHeader() {
         JPanel wrap = new JPanel(new BorderLayout());
         wrap.setOpaque(false);
@@ -111,7 +102,6 @@ public class CheckoutScreen extends JPanel {
 
                 g2.setFont(getFont());
                 FontMetrics fm = g2.getFontMetrics();
-                // shift arrow 1 px left for optical centre
                 int x = (getWidth() - fm.stringWidth(getText())) / 2 - 1;
                 int y = (getHeight() + fm.getAscent() - fm.getDescent()) / 2;
                 g2.drawString(getText(), x, y);
@@ -142,11 +132,6 @@ public class CheckoutScreen extends JPanel {
         return wrap;
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    // LEFT COLUMN CARDS
-    // ══════════════════════════════════════════════════════════════════════════
-
-    // ── 1. Contact Information ────────────────────────────────────────────────
     private JPanel buildContactCard() {
         ShadowPanel card = new ShadowPanel();
         JPanel inner = new JPanel(new GridBagLayout());
@@ -158,7 +143,6 @@ public class CheckoutScreen extends JPanel {
         g.weightx = 1.0;
         g.insets = new Insets(0, 0, 6, 0);
 
-        // Section label
         JLabel sectionLabel = buildSectionLabel("1. Contact Information");
         g.gridx = 0;
         g.gridy = 0;
@@ -184,21 +168,29 @@ public class CheckoutScreen extends JPanel {
         return card;
     }
 
-    // ── 2. Special Instructions ───────────────────────────────────────────────
     private JPanel buildInstructionsCard() {
         ShadowPanel card = new ShadowPanel();
-        JPanel inner = new JPanel(new BorderLayout(0, 14));
+        JPanel inner = new JPanel(new GridBagLayout());
         inner.setOpaque(false);
         inner.setBorder(new EmptyBorder(26, 26, 26, 26));
 
-        inner.add(buildSectionLabel("2. Special Instructions"), BorderLayout.NORTH);
+        GridBagConstraints g = new GridBagConstraints();
+        g.fill = GridBagConstraints.HORIZONTAL;
+        g.weightx = 1.0;
+        g.insets = new Insets(0, 0, 6, 0);
+
+        JLabel sectionLabel = buildSectionLabel("2. Special Instructions");
+        g.gridx = 0;
+        g.gridy = 0;
+        inner.add(sectionLabel, g);
 
         specialInstructionsArea = new JTextArea(5, 20);
         specialInstructionsArea.setFont(UIStyle.REGULAR);
         specialInstructionsArea.setLineWrap(true);
         specialInstructionsArea.setWrapStyleWord(true);
-        specialInstructionsArea.setBorder(new EmptyBorder(8, 12, 8, 12));
+        specialInstructionsArea.setBorder(new EmptyBorder(10, 14, 10, 14));
         specialInstructionsArea.setBackground(new Color(248, 250, 252));
+        specialInstructionsArea.setForeground(UIStyle.TEXT_PRIMARY);
         specialInstructionsArea.setOpaque(true);
 
         JScrollPane areaScroll = new JScrollPane(specialInstructionsArea);
@@ -208,22 +200,33 @@ public class CheckoutScreen extends JPanel {
         areaScroll.getVerticalScrollBar().setUI(new Scrollbar());
         areaScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 
-        // Rounded wrapper panel — blue border on focus, same as input fields
         boolean[] areaFocused = { false };
         JPanel areaWrap = new JPanel(new BorderLayout()) {
+            private static final int R = 14;
+
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                // Fill rounded background
                 g2.setColor(new Color(248, 250, 252));
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 24, 24);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), R * 2, R * 2);
+                // Draw rounded border
                 g2.setColor(areaFocused[0] ? UIStyle.PRIMARY : UIStyle.INPUT_BORDER);
-                g2.setStroke(areaFocused[0] ? new BasicStroke(1.8f) : new BasicStroke(1.2f));
-                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 24, 24);
+                g2.setStroke(areaFocused[0] ? new java.awt.BasicStroke(1.8f) : new java.awt.BasicStroke(1.2f));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, R * 2, R * 2);
                 g2.dispose();
+            }
+
+            @Override
+            public void doLayout() {
+                super.doLayout();
             }
         };
         areaWrap.setOpaque(false);
+        areaScroll.setOpaque(false);
+        areaScroll.getViewport().setBackground(new Color(248, 250, 252));
+
         specialInstructionsArea.addFocusListener(new java.awt.event.FocusAdapter() {
             @Override
             public void focusGained(java.awt.event.FocusEvent e) {
@@ -238,13 +241,16 @@ public class CheckoutScreen extends JPanel {
             }
         });
         areaWrap.add(areaScroll, BorderLayout.CENTER);
+        areaWrap.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2)); 
+        JPanel fieldGroup = buildFieldGroup("Special Instructions", areaWrap, 120);
+        g.gridy = 1;
+        g.insets = new Insets(14, 0, 0, 0);
+        inner.add(fieldGroup, g);
 
-        inner.add(areaWrap, BorderLayout.CENTER);
         card.add(inner);
         return card;
     }
 
-    // ── 3. Payment Method ─────────────────────────────────────────────────────
     private JPanel buildPaymentCard() {
         ShadowPanel card = new ShadowPanel();
         JPanel inner = new JPanel(new BorderLayout(0, 14));
@@ -258,19 +264,15 @@ public class CheckoutScreen extends JPanel {
         optionsRow.setOpaque(false);
 
         cashRadio = buildPaymentOption("Cash", buildCashIcon(), true);
-        gcashRadio = buildPaymentOption("G-CASH", buildGcashIcon(), false);
 
         optionsRow.add(cashRadio.getParent());
-        optionsRow.add(gcashRadio.getParent());
 
         inner.add(optionsRow, BorderLayout.CENTER);
         card.add(inner);
         return card;
     }
 
-    /** Builds one payment tile and returns its JRadioButton. */
     private JRadioButton buildPaymentOption(String label, JComponent iconComp, boolean selected) {
-        // Tile panel
         JPanel tile = new JPanel(new BorderLayout(14, 0)) {
             @Override
             protected void paintComponent(Graphics g) {
@@ -318,9 +320,6 @@ public class CheckoutScreen extends JPanel {
         return rb;
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    // RIGHT COLUMN – ORDER SUMMARY CARD
-    // ══════════════════════════════════════════════════════════════════════════
     private JPanel buildOrderSummaryCard() {
         ShadowPanel card = new ShadowPanel();
         card.setPreferredSize(new Dimension(340, 0));
@@ -329,7 +328,7 @@ public class CheckoutScreen extends JPanel {
         inner.setOpaque(false);
         inner.setBorder(new EmptyBorder(0, 0, 0, 0));
 
-        // ── TOP: Store branding banner ────────────────────────────────────────
+
         JPanel brandBanner = buildBrandBanner();
         inner.add(brandBanner, BorderLayout.NORTH);
 
@@ -390,7 +389,6 @@ public class CheckoutScreen extends JPanel {
         centerPanel.add(totalRow);
         inner.add(centerPanel, BorderLayout.CENTER);
 
-        // ── BOTTOM: Confirm button ────────────────────────────────────────────
         JPanel btnWrap = new JPanel(new BorderLayout());
         btnWrap.setOpaque(false);
         btnWrap.setBorder(new EmptyBorder(0, 22, 22, 22));
@@ -427,18 +425,15 @@ public class CheckoutScreen extends JPanel {
         return card;
     }
 
-    /** Store logo + name + address block at top of summary card. */
     private JPanel buildBrandBanner() {
         JPanel banner = new JPanel(new BorderLayout(12, 0)) {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
-                // gentle gradient background
                 GradientPaint gp = new GradientPaint(
                         0, 0, new Color(219, 234, 254),
                         0, getHeight(), new Color(207, 250, 254));
                 g2.setPaint(gp);
-                // round only the top corners
                 g2.fillRoundRect(0, 0, getWidth(), getHeight() + 20, 18, 18);
                 g2.dispose();
             }
@@ -446,7 +441,6 @@ public class CheckoutScreen extends JPanel {
         banner.setOpaque(false);
         banner.setBorder(new EmptyBorder(18, 20, 18, 20));
 
-        // Logo with blue box background
         JPanel logoContainer = new JPanel() {
             private Image brandImg;
             {
@@ -481,7 +475,6 @@ public class CheckoutScreen extends JPanel {
         logoContainer.setPreferredSize(new Dimension(42, 42));
         logoContainer.setOpaque(false);
 
-        // Name + address
         JPanel textBlock = new JPanel();
         textBlock.setLayout(new BoxLayout(textBlock, BoxLayout.Y_AXIS));
         textBlock.setOpaque(false);
@@ -517,10 +510,6 @@ public class CheckoutScreen extends JPanel {
         return chip;
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    // PAYMENT ICON HELPERS
-    // ══════════════════════════════════════════════════════════════════════════
-
     /** Peso-sign icon circle (Cash). */
     private JComponent buildCashIcon() {
         JPanel circle = new JPanel(new GridBagLayout()) {
@@ -542,36 +531,10 @@ public class CheckoutScreen extends JPanel {
         return circle;
     }
 
-    /** G·Cash logo-like icon. */
-    private JComponent buildGcashIcon() {
-        JPanel box = new JPanel(new GridBagLayout()) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                // GCash brand blue
-                g2.setColor(new Color(0, 119, 196));
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
-                g2.dispose();
-            }
-        };
-        box.setOpaque(false);
-        box.setPreferredSize(new Dimension(40, 40));
-        JLabel lbl = new JLabel("G");
-        lbl.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        lbl.setForeground(Color.WHITE);
-        box.add(lbl);
-        return box;
-    }
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // SHARED MINI-COMPONENTS
-    // ══════════════════════════════════════════════════════════════════════════
-
     private JLabel buildSectionLabel(String text) {
         JLabel lbl = new JLabel(text);
         lbl.setFont(new Font("Segoe UI", Font.BOLD, 15));
-        lbl.setForeground(UIStyle.TEXT_SECONDARY);
+        lbl.setForeground(Color.BLACK);
         return lbl;
     }
 
@@ -586,8 +549,19 @@ public class CheckoutScreen extends JPanel {
         return p;
     }
 
+    private JPanel buildFieldGroup(String label, JComponent component, int height) {
+        JPanel p = new JPanel(new BorderLayout(0, 7));
+        p.setOpaque(false);
+        JLabel l = new JLabel(label);
+        l.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        l.setForeground(UIStyle.TEXT_SECONDARY);
+        p.add(l, BorderLayout.NORTH);
+        component.setPreferredSize(new Dimension(0, height));
+        p.add(component, BorderLayout.CENTER);
+        return p;
+    }
+
     private JTextField makeTextField(String placeholder) {
-        // Rounded text field via custom paintComponent
         JTextField f = new JTextField() {
             private static final int R = 12;
 
@@ -649,10 +623,6 @@ public class CheckoutScreen extends JPanel {
         sep.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
         return sep;
     }
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // BUSINESS LOGIC
-    // ══════════════════════════════════════════════════════════════════════════
 
     private String generateOrderNumber() {
         int num = 1 + new Random().nextInt(999);

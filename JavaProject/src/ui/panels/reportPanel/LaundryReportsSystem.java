@@ -3,9 +3,9 @@ package src.ui.panels.reportPanel;
 import java.awt.*;
 import javax.swing.*;
 import javax.swing.table.*;
+import src.util.components.Scrollbar;
 import src.util.components.ShadowPanel;
 import src.util.config.UIStyle;
-import src.util.components.Scrollbar;
 
 public class LaundryReportsSystem extends JPanel {
     private String activeTab = "Profitability";
