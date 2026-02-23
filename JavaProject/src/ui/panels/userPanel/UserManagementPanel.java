@@ -166,10 +166,10 @@ public class UserManagementPanel extends JPanel {
                                 String.valueOf(tableModel.getStaffCount()), "STAFF", new Color(224, 242, 254),
                                 UIStyle.PRIMARY);
 
-                statsPanel.add(totalAccountsCard);
-                statsPanel.add(activeAccountsCard);
-                statsPanel.add(administratorsCard);
-                statsPanel.add(staffsCard);
+                statsPanel.add(wrapInShadow(totalAccountsCard));
+                statsPanel.add(wrapInShadow(activeAccountsCard));
+                statsPanel.add(wrapInShadow(administratorsCard));
+                statsPanel.add(wrapInShadow(staffsCard));
 
                 return statsPanel;
         }
@@ -491,7 +491,7 @@ public class UserManagementPanel extends JPanel {
                         java.net.URL imgUrl = getClass().getResource(iconPath);
                         if (imgUrl != null) {
                                 ImageIcon original = new ImageIcon(imgUrl);
-                                Image scaled = original.getImage().getScaledInstance(32, 32, Image.SCALE_SMOOTH);
+                                Image scaled = original.getImage().getScaledInstance(48, 48, Image.SCALE_SMOOTH);
                                 iconLabel.setIcon(new ImageIcon(scaled));
                         } else {
                                 iconLabel.setText(iconType);
@@ -544,98 +544,22 @@ public class UserManagementPanel extends JPanel {
         }
 
         private void showAddUserDialog() {
-                JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Add New User", true);
-                dialog.setSize(500, 400);
-                dialog.setLocationRelativeTo(SwingUtilities.getWindowAncestor(this));
-                dialog.setResizable(false);
+                Object[] data = AddUserDialog.showAddUser((Frame) SwingUtilities.getWindowAncestor(this));
+                if (data != null) {
+                        String name = (String) data[0];
+                        String contact = (String) data[1];
+                        User.UserRole role = data[2].equals("Admin") ? User.UserRole.ADMIN : User.UserRole.STAFF;
 
-                JPanel mainPanel = new JPanel(new BorderLayout());
-                mainPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
-                mainPanel.setBackground(Color.WHITE);
+                        // Generate a simple ID logic or random for placeholder
+                        String userId = String.valueOf(100 + tableModel.getRowCount() + 1);
 
-                JPanel formPanel = new JPanel();
-                formPanel.setLayout(new BoxLayout(formPanel, BoxLayout.Y_AXIS));
-                formPanel.setBackground(Color.WHITE);
-
-                JTextField userIdField = new JTextField();
-                JTextField nameField = new JTextField();
-                JTextField contactField = new JTextField();
-                JComboBox<String> roleCombo = new JComboBox<>(new String[] { "Admin", "Staff" });
-                JCheckBox activeCheckbox = new JCheckBox("Active", true);
-
-                formPanel.add(createFormLabel("User ID:"));
-                userIdField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-                formPanel.add(userIdField);
-                formPanel.add(Box.createVerticalStrut(10));
-
-                formPanel.add(createFormLabel("Name:"));
-                nameField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-                formPanel.add(nameField);
-                formPanel.add(Box.createVerticalStrut(10));
-
-                formPanel.add(createFormLabel("Contact Number:"));
-                contactField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-                formPanel.add(contactField);
-                formPanel.add(Box.createVerticalStrut(10));
-
-                formPanel.add(createFormLabel("Role:"));
-                roleCombo.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-                formPanel.add(roleCombo);
-                formPanel.add(Box.createVerticalStrut(10));
-
-                activeCheckbox.setBackground(Color.WHITE);
-                activeCheckbox.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-                formPanel.add(activeCheckbox);
-
-                mainPanel.add(formPanel, BorderLayout.CENTER);
-
-                JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
-                buttonPanel.setBackground(Color.WHITE);
-
-                JButton saveButton = new JButton("Save");
-                saveButton.setPreferredSize(new Dimension(100, 35));
-                saveButton.addActionListener(e -> {
-                        String userId = userIdField.getText().trim();
-                        String name = nameField.getText().trim();
-                        String contact = contactField.getText().trim();
-
-                        if (userId.isEmpty() || name.isEmpty() || contact.isEmpty()) {
-                                JOptionPane.showMessageDialog(dialog, "All fields are required!", "Validation Error",
-                                                JOptionPane.ERROR_MESSAGE);
-                                return;
-                        }
-
-                        User.UserRole role = ((String) roleCombo.getSelectedItem()).equals("Admin")
-                                        ? User.UserRole.ADMIN
-                                        : User.UserRole.STAFF;
-                        User newUser = new User(userId, name, contact, role, activeCheckbox.isSelected(),
+                        User newUser = new User(userId, name, contact, role, true,
                                         LocalDate.now(), LocalDate.now());
                         addUser(newUser);
 
-                        JOptionPane.showMessageDialog(dialog, "User " + name + " has been created successfully!",
+                        JOptionPane.showMessageDialog(this, "User " + name + " has been created successfully!",
                                         "Success", JOptionPane.INFORMATION_MESSAGE);
-                        dialog.dispose();
-                });
-
-                JButton cancelButton = new JButton("Cancel");
-                cancelButton.setPreferredSize(new Dimension(100, 35));
-                cancelButton.addActionListener(e -> dialog.dispose());
-
-                buttonPanel.add(saveButton);
-                buttonPanel.add(cancelButton);
-
-                mainPanel.add(buttonPanel, BorderLayout.SOUTH);
-
-                dialog.add(mainPanel);
-                dialog.setVisible(true);
-        }
-
-        private JLabel createFormLabel(String text) {
-                JLabel label = new JLabel(text);
-                label.setFont(new Font("Segoe UI", Font.BOLD, 12));
-                label.setForeground(UIStyle.TEXT_PRIMARY);
-                label.setAlignmentX(Component.LEFT_ALIGNMENT);
-                return label;
+                }
         }
 
         private void refreshStats() {
@@ -654,10 +578,10 @@ public class UserManagementPanel extends JPanel {
                                 String.valueOf(tableModel.getStaffCount()), "STAFF", new Color(224, 242, 254),
                                 UIStyle.PRIMARY);
 
-                statsPanel.add(totalAccountsCard);
-                statsPanel.add(activeAccountsCard);
-                statsPanel.add(administratorsCard);
-                statsPanel.add(staffsCard);
+                statsPanel.add(wrapInShadow(totalAccountsCard));
+                statsPanel.add(wrapInShadow(activeAccountsCard));
+                statsPanel.add(wrapInShadow(administratorsCard));
+                statsPanel.add(wrapInShadow(staffsCard));
 
                 statsPanel.revalidate();
                 statsPanel.repaint();
@@ -692,8 +616,7 @@ public class UserManagementPanel extends JPanel {
                                         Graphics2D g2 = (Graphics2D) g.create();
                                         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
                                                         RenderingHints.VALUE_ANTIALIAS_ON);
-                                        g2.setColor(iconBg);
-                                        g2.fillOval(0, 0, getWidth(), getHeight());
+                                        // Removed iconBg circle painting
 
                                         // Draw generic icon symbol
                                         g2.setColor(iconFg);
@@ -705,7 +628,7 @@ public class UserManagementPanel extends JPanel {
                                                                         "/src/resources/images/accounts.png");
                                                         if (imgUrl != null) {
                                                                 Image img = new ImageIcon(imgUrl).getImage();
-                                                                g2.drawImage(img, w / 4, h / 4, w / 2, h / 2, null);
+                                                                g2.drawImage(img, 0, 0, w, h, null);
                                                         } else {
                                                                 g2.fillOval(w / 4, h / 4, w / 2, h / 2);
                                                         }
@@ -718,7 +641,7 @@ public class UserManagementPanel extends JPanel {
                                                                         "/src/resources/images/active.png");
                                                         if (imgUrl != null) {
                                                                 Image img = new ImageIcon(imgUrl).getImage();
-                                                                g2.drawImage(img, w / 4, h / 4, w / 2, h / 2, null);
+                                                                g2.drawImage(img, 0, 0, w, h, null);
                                                         } else {
                                                                 g2.setStroke(new BasicStroke(2));
                                                                 g2.drawLine(w / 4, h / 2, w / 2, h * 3 / 4);
@@ -735,7 +658,7 @@ public class UserManagementPanel extends JPanel {
                                                                         "/src/resources/images/administrator.png");
                                                         if (imgUrl != null) {
                                                                 Image img = new ImageIcon(imgUrl).getImage();
-                                                                g2.drawImage(img, w / 4, h / 4, w / 2, h / 2, null);
+                                                                g2.drawImage(img, 0, 0, w, h, null);
                                                         } else {
                                                                 g2.drawRoundRect(w / 4, h / 4, w / 2, h / 2, 5, 5);
                                                         }
@@ -748,7 +671,7 @@ public class UserManagementPanel extends JPanel {
                                                                         "/src/resources/images/staff.png");
                                                         if (imgUrl != null) {
                                                                 Image img = new ImageIcon(imgUrl).getImage();
-                                                                g2.drawImage(img, w / 4, h / 4, w / 2, h / 2, null);
+                                                                g2.drawImage(img, 0, 0, w, h, null);
                                                         } else {
                                                                 g2.fillOval(w / 3, h / 4, w / 3, h / 3);
                                                                 g2.fillArc(w / 4, h / 2, w / 2, h / 2, 0, 180);
@@ -761,11 +684,15 @@ public class UserManagementPanel extends JPanel {
                                         g2.dispose();
                                 }
                         };
-                        iconContainer.setPreferredSize(new Dimension(40, 40));
+                        iconContainer.setPreferredSize(new Dimension(32, 32));
+                        iconContainer.setMinimumSize(new Dimension(32, 32));
+                        iconContainer.setMaximumSize(new Dimension(32, 32));
                         iconContainer.setOpaque(false);
                         gbc.gridx = 1;
                         gbc.gridy = 0;
                         gbc.weightx = 0.0;
+                        gbc.weighty = 0.0;
+                        gbc.fill = GridBagConstraints.NONE;
                         gbc.anchor = GridBagConstraints.NORTHEAST;
                         add(iconContainer, gbc);
 

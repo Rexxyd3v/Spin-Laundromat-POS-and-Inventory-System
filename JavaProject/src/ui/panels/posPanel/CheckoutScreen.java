@@ -26,7 +26,7 @@ public class CheckoutScreen extends JPanel {
     private String orderNumber;
 
     // ─── Brand Constants ─────────────────────────────────────────────────────
-    private static final String STORE_NAME = "Spin Laundromat Service";
+    private static final String STORE_NAME = "Machine Wash";
     private static final String STORE_ADDRESS = "143 Lamar St., Brgy. 164 Zone 13,\nRivera Village NAIA, Pasay City";
 
     public CheckoutScreen() {
@@ -446,22 +446,40 @@ public class CheckoutScreen extends JPanel {
         banner.setOpaque(false);
         banner.setBorder(new EmptyBorder(18, 20, 18, 20));
 
-        // Icon
-        JLabel iconLbl = new JLabel();
-        try {
-            java.net.URL url = getClass().getResource("/src/resources/images/store.png");
-            if (url != null) {
-                ImageIcon ic = new ImageIcon(url);
-                Image img = ic.getImage().getScaledInstance(38, 38, Image.SCALE_SMOOTH);
-                iconLbl.setIcon(new ImageIcon(img));
-            } else {
-                iconLbl.setText("🧺");
-                iconLbl.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 26));
+        // Logo with blue box background
+        JPanel logoContainer = new JPanel() {
+            private Image brandImg;
+            {
+                try {
+                    java.net.URL url = getClass().getResource("/src/resources/images/machine_wash.png");
+                    if (url != null) {
+                        brandImg = new ImageIcon(url).getImage();
+                    }
+                } catch (Exception e) {
+                }
             }
-        } catch (Exception e) {
-            iconLbl.setText("🧺");
-            iconLbl.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 26));
-        }
+
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                // Blue background box
+                g2.setColor(UIStyle.PRIMARY);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+
+                if (brandImg != null) {
+                    int imgW = 28;
+                    int imgH = 28;
+                    int x = (getWidth() - imgW) / 2;
+                    int y = (getHeight() - imgH) / 2;
+                    g2.drawImage(brandImg, x, y, imgW, imgH, null);
+                }
+                g2.dispose();
+            }
+        };
+        logoContainer.setPreferredSize(new Dimension(42, 42));
+        logoContainer.setOpaque(false);
 
         // Name + address
         JPanel textBlock = new JPanel();
@@ -481,7 +499,7 @@ public class CheckoutScreen extends JPanel {
         textBlock.add(Box.createVerticalStrut(3));
         textBlock.add(addrLabel);
 
-        banner.add(iconLbl, BorderLayout.WEST);
+        banner.add(logoContainer, BorderLayout.WEST);
         banner.add(textBlock, BorderLayout.CENTER);
         return banner;
     }

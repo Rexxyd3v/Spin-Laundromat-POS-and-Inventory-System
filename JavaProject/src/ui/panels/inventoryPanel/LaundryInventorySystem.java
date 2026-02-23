@@ -149,11 +149,17 @@ public class LaundryInventorySystem extends JPanel {
         panel.setOpaque(false);
         panel.setPreferredSize(new Dimension(0, 140));
 
-        panel.add(new StatCard("Total Products", "18", UIStyle.TEXT_PRIMARY));
-        panel.add(new StatCard("Low Stocks", "3", ORANGE_ACCENT));
-        panel.add(new StatCard("Inventory Value", "₱234,200", UIStyle.PRIMARY));
+        panel.add(wrapInShadow(new StatCard("Total Products", "18", UIStyle.TEXT_PRIMARY, "TOTAL")));
+        panel.add(wrapInShadow(new StatCard("Low Stocks", "3", ORANGE_ACCENT, "LOW")));
+        panel.add(wrapInShadow(new StatCard("Inventory Value", "₱234,200", UIStyle.PRIMARY, "VALUE")));
 
         return panel;
+    }
+
+    private JPanel wrapInShadow(JPanel content) {
+        ShadowPanel shadow = new ShadowPanel();
+        shadow.add(content);
+        return shadow;
     }
 
     private JPanel buildTableFilterRow() {
@@ -414,29 +420,76 @@ public class LaundryInventorySystem extends JPanel {
     // Inner class for Stat Card aligned with User Panel (Icons removed as
     // requested)
     private class StatCard extends JPanel {
-        public StatCard(String title, String value, Color valueColor) {
+        public StatCard(String title, String value, Color valueColor, String iconType) {
             setLayout(new GridBagLayout());
             setBackground(Color.WHITE);
-            setBorder(new EmptyBorder(25, 25, 25, 25));
+            setBorder(new EmptyBorder(20, 25, 20, 25));
 
             GridBagConstraints gbc = new GridBagConstraints();
-            gbc.fill = GridBagConstraints.HORIZONTAL;
+            gbc.fill = GridBagConstraints.BOTH;
             gbc.weightx = 1.0;
 
+            // Title (Top Left)
             JLabel titleLabel = new JLabel(title);
             titleLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
             titleLabel.setForeground(UIStyle.TEXT_SECONDARY);
             gbc.gridx = 0;
             gbc.gridy = 0;
-            gbc.anchor = GridBagConstraints.NORTHWEST;
+            gbc.weighty = 0.3;
             add(titleLabel, gbc);
 
+            // Icon (Top Right)
+            JPanel iconContainer = new JPanel() {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                    int w = getWidth();
+                    int h = getHeight();
+                    String iconPath = null;
+                    if (iconType.equals("TOTAL"))
+                        iconPath = "/src/resources/images/total_products.png";
+                    else if (iconType.equals("LOW"))
+                        iconPath = "/src/resources/images/low_stocks.png";
+                    else if (iconType.equals("VALUE"))
+                        iconPath = "/src/resources/images/inventory_value.png";
+
+                    if (iconPath != null) {
+                        try {
+                            java.net.URL imgUrl = getClass().getResource(iconPath);
+                            if (imgUrl != null) {
+                                Image img = new ImageIcon(imgUrl).getImage();
+                                g2.drawImage(img, 0, 0, w, h, null);
+                            }
+                        } catch (Exception e) {
+                        }
+                    }
+                    g2.dispose();
+                }
+            };
+            iconContainer.setPreferredSize(new Dimension(32, 32));
+            iconContainer.setMinimumSize(new Dimension(32, 32));
+            iconContainer.setMaximumSize(new Dimension(32, 32));
+            iconContainer.setOpaque(false);
+
+            gbc.gridx = 1;
+            gbc.gridy = 0;
+            gbc.weightx = 0.0;
+            gbc.weighty = 0.0;
+            gbc.fill = GridBagConstraints.NONE;
+            gbc.anchor = GridBagConstraints.NORTHEAST;
+            add(iconContainer, gbc);
+
+            // Value (Bottom Left)
             JLabel valueLabel = new JLabel(value);
             valueLabel.setFont(new Font("SansSerif", Font.BOLD, 36));
             valueLabel.setForeground(valueColor);
             gbc.gridx = 0;
             gbc.gridy = 1;
-            gbc.insets = new Insets(10, 0, 0, 0);
+            gbc.gridwidth = 2;
+            gbc.weightx = 1.0;
+            gbc.weighty = 0.7;
             gbc.anchor = GridBagConstraints.SOUTHWEST;
             add(valueLabel, gbc);
         }

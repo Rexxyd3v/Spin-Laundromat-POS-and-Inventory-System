@@ -4,6 +4,7 @@ import java.awt.*;
 import javax.swing.*;
 import javax.swing.border.*;
 import src.util.components.Scrollbar;
+import src.util.components.ShadowPanel;
 
 public class DashboardPanel extends JPanel {
 
@@ -151,33 +152,34 @@ public class DashboardPanel extends JPanel {
         content.setBackground(MAIN_BG);
 
         // Stats cards
-        JPanel statsRow = new JPanel(new GridLayout(1, 4, 20, 0));
+        JPanel statsRow = new JPanel(new GridLayout(1, 4, 10, 0));
         statsRow.setBackground(MAIN_BG);
-        statsRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 140));
-        statsRow.add(createStatCard("⏱", "Today's Revenue", "₱142,395.00", "+15.23% from yesterday", true));
-        statsRow.add(createStatCard("🔔", "Orders Today", "876", "+8.32% from yesterday", true));
-        statsRow.add(createStatCard("📦", "Low Stock Items", "23", "-3.1% from yesterday", false));
-        statsRow.add(createStatCard("✓", "Orders Completed", "835", "+3.9% from yesterday", true));
+        statsRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
+        statsRow.add(
+                wrapInShadow(createStatCard("⏱", "Today's Revenue", "₱142,395.00", "+15.23% from yesterday", true)));
+        statsRow.add(wrapInShadow(createStatCard("🔔", "Orders Today", "876", "+8.32% from yesterday", true)));
+        statsRow.add(wrapInShadow(createStatCard("📦", "Low Stock Items", "23", "-3.1% from yesterday", false)));
+        statsRow.add(wrapInShadow(createStatCard("✓", "Orders Completed", "835", "+3.9% from yesterday", true)));
         content.add(statsRow);
 
-        content.add(Box.createVerticalStrut(20));
+        content.add(Box.createVerticalStrut(10));
 
         // Middle row
-        JPanel middleRow = new JPanel(new GridLayout(1, 2, 20, 0));
+        JPanel middleRow = new JPanel(new GridLayout(1, 2, 10, 0));
         middleRow.setBackground(MAIN_BG);
-        middleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 320));
-        middleRow.add(createRevenueOverviewPanel());
-        middleRow.add(createRecentOrdersPanel());
+        middleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 340));
+        middleRow.add(wrapInShadow(createRevenueOverviewPanel()));
+        middleRow.add(wrapInShadow(createRecentOrdersPanel()));
         content.add(middleRow);
 
-        content.add(Box.createVerticalStrut(20));
+        content.add(Box.createVerticalStrut(10));
 
         // Bottom row
-        JPanel bottomRow = new JPanel(new GridLayout(1, 2, 20, 0));
+        JPanel bottomRow = new JPanel(new GridLayout(1, 2, 10, 0));
         bottomRow.setBackground(MAIN_BG);
-        bottomRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 350));
-        bottomRow.add(createBestSellingPanel());
-        bottomRow.add(createLowStockPanel());
+        bottomRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 370));
+        bottomRow.add(wrapInShadow(createBestSellingPanel()));
+        bottomRow.add(wrapInShadow(createLowStockPanel()));
         content.add(bottomRow);
 
         content.add(Box.createVerticalGlue());
@@ -425,6 +427,12 @@ public class DashboardPanel extends JPanel {
         card.add(statusLabel);
 
         return card;
+    }
+
+    private JPanel wrapInShadow(JPanel content) {
+        ShadowPanel shadow = new ShadowPanel();
+        shadow.add(content);
+        return shadow;
     }
 
     static class RoundedBorder extends AbstractBorder {

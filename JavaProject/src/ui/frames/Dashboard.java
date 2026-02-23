@@ -9,17 +9,17 @@ import src.ui.panels.dashboardPanel.*;
 import src.ui.panels.inventoryPanel.LaundryInventorySystem;
 import src.ui.panels.posPanel.LaundryPOS;
 import src.ui.panels.reportPanel.LaundryReportsSystem;
-import src.ui.panels.settingsPanel.SettingsPanelPreview;
+import src.ui.panels.settingsPanel.SettingsPanel;
 import src.ui.panels.userPanel.UserManagementPanel;
 import src.util.config.*;
 
-public class DashboardPreview extends JFrame {
+public class Dashboard extends JFrame {
     private final Staff staff;
     private JPanel contentPanel;
     private CardLayout cardLayout;
     private SidebarButton currentActiveBtn;
 
-    public DashboardPreview() {
+    public Dashboard() {
         // Mock staff (Correct signature from Staff.java)
         this.staff = new Staff("0", "Admin", "password123");
 
@@ -28,6 +28,15 @@ public class DashboardPreview extends JFrame {
         setExtendedState(JFrame.MAXIMIZED_BOTH);
 
         setLayout(new BorderLayout());
+
+        // Set Window Icon
+        try {
+            java.net.URL iconUrl = getClass().getResource("/src/resources/images/desktoplogo.png");
+            if (iconUrl != null) {
+                setIconImage(new ImageIcon(iconUrl).getImage());
+            }
+        } catch (Exception e) {
+        }
 
         initSidebar();
         initMainContent();
@@ -54,7 +63,7 @@ public class DashboardPreview extends JFrame {
             private Image brandImg;
             {
                 try {
-                    java.net.URL imgUrl = getClass().getResource("/util/images/icons8-machine-wash-100.png");
+                    java.net.URL imgUrl = getClass().getResource("/src/resources/images/machine_wash.png");
                     if (imgUrl != null) {
                         brandImg = new ImageIcon(imgUrl).getImage();
                     }
@@ -87,7 +96,7 @@ public class DashboardPreview extends JFrame {
         brandTextPanel.setBackground(Color.WHITE);
         brandTextPanel.setLayout(new BoxLayout(brandTextPanel, BoxLayout.Y_AXIS));
 
-        JLabel brandName = new JLabel("Spin Laundromat");
+        JLabel brandName = new JLabel("Machine Wash");
         brandName.setFont(new Font("SansSerif", Font.BOLD, 12));
         brandName.setForeground(UIStyle.TEXT_PRIMARY);
 
@@ -161,7 +170,7 @@ public class DashboardPreview extends JFrame {
         logoutBtn.setMaximumSize(new Dimension(240, 45));
         logoutBtn.addActionListener(e -> {
             this.dispose();
-            new MasterKeyPreview().display();
+            new MasterKey().display();
         });
         sidebar.add(logoutBtn);
         sidebar.add(Box.createVerticalStrut(20));
@@ -179,12 +188,12 @@ public class DashboardPreview extends JFrame {
         contentPanel.add(new LaundryInventorySystem(), "Inventory");
         contentPanel.add(new LaundryReportsSystem(), "Reports");
         contentPanel.add(new UserManagementPanel(), "Users");
-        contentPanel.add(new SettingsPanelPreview(), "Settings");
+        contentPanel.add(new SettingsPanel(), "Settings");
 
         add(contentPanel, BorderLayout.CENTER);
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new DashboardPreview().display());
+        SwingUtilities.invokeLater(() -> new Dashboard().display());
     }
 }

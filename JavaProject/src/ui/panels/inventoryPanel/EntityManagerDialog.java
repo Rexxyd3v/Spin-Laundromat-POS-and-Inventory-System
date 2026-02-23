@@ -29,29 +29,35 @@ public class EntityManagerDialog extends JDialog {
         setSize(400, 500);
         setLocationRelativeTo(parent);
 
-        String entityName = entityType == NotificationDialog.EntityType.CATEGORY ? "Category" : "Supplier";
+        String entityTitle = entityType == NotificationDialog.EntityType.CATEGORY ? "Categories" : "Suppliers";
 
         JPanel container = new JPanel(new BorderLayout()) {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                // Shadow / Dimming effect
+                g2.setColor(new Color(0, 0, 0, 40));
+                g2.fillRoundRect(5, 5, getWidth() - 5, getHeight() - 5, 30, 30);
+
                 g2.setColor(Color.WHITE);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 30, 30);
-                g2.setColor(new Color(59, 130, 246, 100));
-                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 30, 30);
+                g2.fillRoundRect(0, 0, getWidth() - 5, getHeight() - 5, 30, 30);
+
+                g2.setColor(new Color(59, 130, 246, 120));
+                g2.drawRoundRect(0, 0, getWidth() - 6, getHeight() - 6, 30, 30);
                 g2.dispose();
             }
         };
         container.setOpaque(false);
-        container.setBorder(new EmptyBorder(30, 30, 30, 30));
+        container.setBorder(new EmptyBorder(35, 35, 35, 40));
 
         // Header
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
 
-        JLabel title = new JLabel("Manage " + entityName + "s");
-        title.setFont(new Font("SansSerif", Font.BOLD, 20));
+        JLabel title = new JLabel("Manage " + entityTitle);
+        title.setFont(new Font("SansSerif", Font.BOLD, 22));
         title.setForeground(TEXT_PRIMARY);
         header.add(title, BorderLayout.WEST);
 
@@ -61,7 +67,7 @@ public class EntityManagerDialog extends JDialog {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(getModel().isRollover() ? RED_BTN : TEXT_SECONDARY);
-                g2.setFont(new Font("SansSerif", Font.BOLD, 18));
+                g2.setFont(new Font("SansSerif", Font.BOLD, 20));
                 FontMetrics fm = g2.getFontMetrics();
                 g2.drawString(getText(), (getWidth() - fm.stringWidth(getText())) / 2,
                         (getHeight() + fm.getAscent()) / 2 - 2);
@@ -79,11 +85,19 @@ public class EntityManagerDialog extends JDialog {
         container.add(header, BorderLayout.NORTH);
 
         // Content
-        JPanel content = new JPanel(new BorderLayout(0, 15));
+        JPanel content = new JPanel(new BorderLayout(0, 20));
         content.setOpaque(false);
-        content.setBorder(new EmptyBorder(20, 0, 0, 0));
+        content.setBorder(new EmptyBorder(25, 0, 0, 0));
 
-        // Input Field
+        // Input Field Wrapper
+        JPanel inputWrapper = new JPanel(new BorderLayout(0, 8));
+        inputWrapper.setOpaque(false);
+
+        JLabel inputLabel = new JLabel("Entry Name");
+        inputLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        inputLabel.setForeground(TEXT_SECONDARY);
+        inputWrapper.add(inputLabel, BorderLayout.NORTH);
+
         inputField = new JTextField() {
             @Override
             protected void paintComponent(Graphics g) {
@@ -104,30 +118,42 @@ public class EntityManagerDialog extends JDialog {
                 g2.dispose();
             }
         };
-        inputField.setPreferredSize(new Dimension(0, 40));
+        inputField.setPreferredSize(new Dimension(0, 45));
         inputField.setBorder(new EmptyBorder(0, 15, 0, 15));
         inputField.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        content.add(inputField, BorderLayout.NORTH);
+        inputWrapper.add(inputField, BorderLayout.CENTER);
 
-        // List
+        content.add(inputWrapper, BorderLayout.NORTH);
+
+        // List Styling
         listModel = new DefaultListModel<>();
         for (String item : currentItems) {
             listModel.addElement(item);
         }
         list = new JList<>(listModel);
-        list.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        list.setOpaque(false);
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        list.setFixedCellHeight(35);
-        list.setSelectionBackground(new Color(59, 130, 246, 30));
-        list.setSelectionForeground(BLUE_ACCENT);
+        list.setCellRenderer(new CustomListRenderer());
+        list.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    handleEdit();
+                }
+            }
+        });
 
         JScrollPane scroll = new JScrollPane(list);
-        scroll.setBorder(BorderFactory.createLineBorder(BORDER_GRAY));
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_GRAY, 1),
+                BorderFactory.createEmptyBorder(5, 5, 5, 5)));
         scroll.getVerticalScrollBar().setUI(new Scrollbar());
         content.add(scroll, BorderLayout.CENTER);
 
         // Buttons
-        JPanel btnPanel = new JPanel(new GridLayout(1, 3, 10, 0));
+        JPanel btnPanel = new JPanel(new GridLayout(1, 3, 12, 0));
         btnPanel.setOpaque(false);
 
         btnPanel.add(createActionButton("Add", BLUE_ACCENT, e -> handleAdd()));
@@ -139,6 +165,26 @@ public class EntityManagerDialog extends JDialog {
         container.add(content, BorderLayout.CENTER);
         add(container);
         setBackground(new Color(0, 0, 0, 0));
+    }
+
+    private class CustomListRenderer extends DefaultListCellRenderer {
+        @Override
+        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected,
+                boolean cellHasFocus) {
+            JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+            label.setBorder(new EmptyBorder(10, 15, 10, 15));
+            label.setFont(new Font("SansSerif", isSelected ? Font.BOLD : Font.PLAIN, 14));
+
+            if (isSelected) {
+                label.setBackground(new Color(59, 130, 246, 40));
+                label.setForeground(BLUE_ACCENT);
+            } else {
+                label.setBackground(Color.WHITE);
+                label.setForeground(TEXT_PRIMARY);
+            }
+            label.setOpaque(true);
+            return label;
+        }
     }
 
     private JButton createActionButton(String text, Color bg, java.awt.event.ActionListener l) {
@@ -189,20 +235,141 @@ public class EntityManagerDialog extends JDialog {
         int idx = list.getSelectedIndex();
         if (idx == -1)
             return;
-        String newName = inputField.getText().trim();
-        if (newName.isEmpty())
-            return;
+        String oldName = listModel.getElementAt(idx);
 
-        boolean confirmed = false;
-        if (entityType == NotificationDialog.EntityType.CATEGORY) {
-            confirmed = NotificationDialog.showUpdateCategory(this);
-        } else {
-            confirmed = NotificationDialog.showUpdateSupplier(this);
+        String newName = RenameDialog.showRename(this, oldName);
+        if (newName != null && !newName.isEmpty() && !newName.equals(oldName)) {
+            boolean confirmed = false;
+            if (entityType == NotificationDialog.EntityType.CATEGORY) {
+                confirmed = NotificationDialog.showUpdateCategory(this);
+            } else {
+                confirmed = NotificationDialog.showUpdateSupplier(this);
+            }
+
+            if (confirmed) {
+                listModel.set(idx, newName);
+            }
+        }
+    }
+
+    private static class RenameDialog extends JDialog {
+        private String result = null;
+        private JTextField inputField;
+
+        private RenameDialog(Window parent, String currentName) {
+            super(parent, ModalityType.APPLICATION_MODAL);
+            setUndecorated(true);
+            setSize(320, 200);
+            setLocationRelativeTo(parent);
+
+            JPanel container = new JPanel(new BorderLayout()) {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setColor(Color.WHITE);
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
+                    g2.setColor(new Color(0, 0, 0, 50));
+                    g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 20, 20);
+                    g2.dispose();
+                }
+            };
+            container.setOpaque(false);
+            container.setBorder(new EmptyBorder(25, 25, 25, 25));
+
+            JPanel content = new JPanel();
+            content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+            content.setOpaque(false);
+
+            JLabel title = new JLabel(currentName);
+            title.setFont(new Font("SansSerif", Font.BOLD, 18));
+            title.setAlignmentX(Component.CENTER_ALIGNMENT);
+            content.add(title);
+
+            JLabel subtitle = new JLabel("CHANGE TO");
+            subtitle.setFont(new Font("SansSerif", Font.PLAIN, 10));
+            subtitle.setForeground(TEXT_SECONDARY);
+            subtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+            content.add(Box.createVerticalStrut(5));
+            content.add(subtitle);
+
+            inputField = new JTextField() {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setColor(FIELD_BG);
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), getHeight(), getHeight()); // Stadium
+                    super.paintComponent(g2);
+                    g2.dispose();
+                }
+
+                @Override
+                public void paintBorder(Graphics g) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setColor(BORDER_GRAY);
+                    g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, getHeight(), getHeight());
+                    g2.dispose();
+                }
+            };
+            inputField.setMaximumSize(new Dimension(300, 35));
+            inputField.setBorder(new EmptyBorder(0, 15, 0, 15));
+            inputField.setFont(new Font("SansSerif", Font.PLAIN, 14));
+            inputField.setOpaque(false);
+            content.add(Box.createVerticalStrut(15));
+            content.add(inputField);
+
+            JPanel btnPanel = new JPanel(new GridLayout(1, 2, 15, 0));
+            btnPanel.setOpaque(false);
+            btnPanel.setMaximumSize(new Dimension(300, 35));
+
+            JButton saveBtn = createStyledButton("SAVE", GREEN_BTN, e -> {
+                result = inputField.getText().trim();
+                dispose();
+            });
+            JButton cancelBtn = createStyledButton("CANCEL", RED_BTN, e -> dispose());
+
+            btnPanel.add(saveBtn);
+            btnPanel.add(cancelBtn);
+
+            content.add(Box.createVerticalStrut(20));
+            content.add(btnPanel);
+
+            container.add(content, BorderLayout.CENTER);
+            add(container);
+            setBackground(new Color(0, 0, 0, 0));
         }
 
-        if (confirmed) {
-            listModel.set(idx, newName);
-            inputField.setText("");
+        private JButton createStyledButton(String text, Color bg, java.awt.event.ActionListener l) {
+            JButton btn = new JButton(text) {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setColor(getModel().isRollover() ? bg.darker() : bg);
+                    g2.fillRect(0, 0, getWidth(), getHeight());
+                    g2.setColor(Color.WHITE);
+                    g2.setFont(getFont());
+                    FontMetrics fm = g2.getFontMetrics();
+                    g2.drawString(getText(), (getWidth() - fm.stringWidth(getText())) / 2,
+                            (getHeight() + fm.getAscent()) / 2 - 1);
+                    g2.dispose();
+                }
+            };
+            btn.setFont(new Font("SansSerif", Font.BOLD, 12));
+            btn.setContentAreaFilled(false);
+            btn.setBorderPainted(false);
+            btn.setFocusPainted(false);
+            btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            btn.addActionListener(l);
+            return btn;
+        }
+
+        public static String showRename(Window parent, String currentName) {
+            RenameDialog dialog = new RenameDialog(parent, currentName);
+            dialog.setVisible(true);
+            return dialog.result;
         }
     }
 

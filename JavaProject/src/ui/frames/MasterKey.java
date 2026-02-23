@@ -1,10 +1,10 @@
 package src.ui.frames;
+
 import java.awt.*;
-import java.awt.geom.RoundRectangle2D;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 
-public class MasterKeyPreview extends JFrame {
+public class MasterKey extends JFrame {
     private final JPasswordField masterKeyField;
     private static final Color BRAND_PURPLE = new Color(93, 33, 209);
     private static final Color SUBTITLE_BLUE = new Color(59, 130, 246);
@@ -15,11 +15,20 @@ public class MasterKeyPreview extends JFrame {
     private static final Color LINK_BLUE = new Color(14, 165, 233);
     private static final Color BG_CYAN = new Color(194, 240, 242);
 
-    public MasterKeyPreview() {
+    public MasterKey() {
         setTitle("Spin Laundromat Service - Master Key");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setUndecorated(false);
+
+        // Set Window Icon
+        try {
+            java.net.URL iconUrl = getClass().getResource("/src/resources/images/desktoplogo.png");
+            if (iconUrl != null) {
+                setIconImage(new ImageIcon(iconUrl).getImage());
+            }
+        } catch (Exception e) {
+        }
 
         JPanel root = new JPanel(new GridBagLayout());
         root.setBackground(BG_CYAN);
@@ -31,7 +40,7 @@ public class MasterKeyPreview extends JFrame {
         iconContainer.setOpaque(false);
         iconContainer.add(createBrandIcon());
 
-        JLabel brandTitle = new JLabel("Spin Laundromat Service");
+        JLabel brandTitle = new JLabel("Machine Wash");
         brandTitle.setFont(new Font("SansSerif", Font.BOLD, 28));
         brandTitle.setForeground(BRAND_PURPLE);
         brandTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -46,65 +55,72 @@ public class MasterKeyPreview extends JFrame {
         sectionTitle.setForeground(HEADING_DARK);
         sectionTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JPanel passwordPanel = new JPanel(new BorderLayout());
-passwordPanel.setOpaque(false);
-passwordPanel.setMaximumSize(new Dimension(420, 50));
-passwordPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JPanel passwordPanel = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(INPUT_BG);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), getHeight(), getHeight());
+                g2.setColor(INPUT_TEXT);
+                g2.setStroke(new BasicStroke(1.5f));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, getHeight(), getHeight());
+                g2.dispose();
+            }
+        };
+        passwordPanel.setOpaque(false);
+        passwordPanel.setMaximumSize(new Dimension(420, 50));
+        passwordPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-masterKeyField = new RoundPasswordField(20);
-masterKeyField.setFont(new Font("SansSerif", Font.PLAIN, 14));
-// Eye toggle button
-JButton eyeButton = new JButton() {
-    @Override
-    protected void paintComponent(Graphics g) {
-        // Draw eye icon manually using Graphics2D
-        Graphics2D g2 = (Graphics2D) g.create();
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2.setColor(HEADING_DARK);
-        int cx = getWidth() / 2, cy = getHeight() / 2;
+        masterKeyField = new RoundPasswordField(20);
+        masterKeyField.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        masterKeyField.setBackground(new Color(0, 0, 0, 0));
+        masterKeyField.setBorder(new EmptyBorder(0, 45, 0, 5));
 
-        if (masterKeyField.getEchoChar() == 0) {
-            // Eye OPEN — password is visible, clicking will hide it
-            g2.drawOval(cx - 8, cy - 5, 16, 10);
-            g2.fillOval(cx - 3, cy - 3, 6, 6);
+        // Eye toggle button
+        JButton eyeButton = new JButton() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(HEADING_DARK);
+                int cx = getWidth() / 2, cy = getHeight() / 2;
 
-        } else {
-            // Eye CLOSED — password is hidden, clicking will show it
-            g2.drawOval(cx - 8, cy - 5, 16, 10);
-            g2.fillOval(cx - 3, cy - 3, 6, 6);
-            g2.setStroke(new BasicStroke(2));
-            g2.drawLine(cx - 10, cy + 6, cx + 10, cy - 6); // slash line
-        }
+                if (masterKeyField.getEchoChar() == 0) {
+                    g2.drawOval(cx - 8, cy - 5, 16, 10);
+                    g2.fillOval(cx - 3, cy - 3, 6, 6);
+                } else {
+                    g2.drawOval(cx - 8, cy - 5, 16, 10);
+                    g2.fillOval(cx - 3, cy - 3, 6, 6);
+                    g2.setStroke(new BasicStroke(2));
+                    g2.drawLine(cx - 10, cy + 6, cx + 10, cy - 6);
+                }
+                g2.dispose();
+            }
+        };
 
-        g2.dispose();
-    }
-};
+        eyeButton.setPreferredSize(new Dimension(50, 50));
+        eyeButton.setContentAreaFilled(false);
+        eyeButton.setBorderPainted(false);
+        eyeButton.setFocusPainted(false);
+        eyeButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        eyeButton.setToolTipText("Show/Hide password");
 
-eyeButton.setPreferredSize(new Dimension(40, 50));
-eyeButton.setContentAreaFilled(false);
-eyeButton.setBorderPainted(false);
-eyeButton.setFocusPainted(false);
-eyeButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-eyeButton.setToolTipText("Show/Hide password");
+        eyeButton.addActionListener(e -> {
+            if (masterKeyField.getEchoChar() == 0) {
+                masterKeyField.setEchoChar('•');
+                eyeButton.setToolTipText("Show password");
+            } else {
+                masterKeyField.setEchoChar((char) 0);
+                eyeButton.setToolTipText("Hide password");
+            }
+            masterKeyField.setFont(new Font("SansSerif", Font.PLAIN, 14));
+            eyeButton.repaint();
+            masterKeyField.requestFocusInWindow();
+        });
 
-// Toggle logic
-eyeButton.addActionListener(e -> {
-    if (masterKeyField.getEchoChar() == 0) {
-        // Currently visible → hide it
-        masterKeyField.setEchoChar('•');
-        eyeButton.setToolTipText("Show password");
-    } else {
-        // Currently hidden → show it
-        masterKeyField.setEchoChar((char) 0);
-        eyeButton.setToolTipText("Hide password");
-    }
-    masterKeyField.setFont(new Font("SansSerif", Font.PLAIN, 14));
-    eyeButton.repaint();
-    masterKeyField.requestFocusInWindow();
-});
-
-passwordPanel.add(masterKeyField, BorderLayout.CENTER);
-passwordPanel.add(eyeButton, BorderLayout.EAST);
+        passwordPanel.add(masterKeyField, BorderLayout.CENTER);
+        passwordPanel.add(eyeButton, BorderLayout.EAST);
 
         JPanel optionsPanel = new JPanel(new BorderLayout());
         optionsPanel.setOpaque(false);
@@ -128,7 +144,7 @@ passwordPanel.add(eyeButton, BorderLayout.EAST);
         signInBtn.addActionListener(e -> {
             // Mock Transition to Staff Login Preview
             this.dispose();
-            new StaffLoginPreview().display();
+            new StaffLogin().display();
         });
 
         // 6. Footer
@@ -202,7 +218,7 @@ passwordPanel.add(eyeButton, BorderLayout.EAST);
             {
                 try {
                     // Try to load from resources
-                    java.net.URL imgUrl = getClass().getResource("/util/images/icons8-machine-wash-100.png");
+                    java.net.URL imgUrl = getClass().getResource("/src/resources/images/machine_wash.png");
                     if (imgUrl != null) {
                         brandImg = new ImageIcon(imgUrl).getImage();
                     }
@@ -299,8 +315,7 @@ passwordPanel.add(eyeButton, BorderLayout.EAST);
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(getBackground());
-            g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), 50, 50));
+            // Removed background filling to show parent's background
             g2.setColor(INPUT_TEXT);
             g2.setStroke(new BasicStroke(1.5f));
             int ix = 18;
@@ -313,15 +328,11 @@ passwordPanel.add(eyeButton, BorderLayout.EAST);
 
         @Override
         public void paintBorder(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(INPUT_TEXT);
-            g2.draw(new RoundRectangle2D.Double(0, 0, getWidth() - 1, getHeight() - 1, 50, 50));
-            g2.dispose();
+            // Border is now handled by the parent container
         }
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new MasterKeyPreview().display());
+        SwingUtilities.invokeLater(() -> new MasterKey().display());
     }
 }

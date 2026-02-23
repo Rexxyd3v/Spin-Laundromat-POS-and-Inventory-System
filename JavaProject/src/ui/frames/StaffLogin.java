@@ -1,9 +1,10 @@
 package src.ui.frames;
+
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 
-public class StaffLoginPreview extends JFrame {
+public class StaffLogin extends JFrame {
     private JTextField usernameField;
     private JPasswordField passwordField;
 
@@ -18,7 +19,7 @@ public class StaffLoginPreview extends JFrame {
     private static final Color BG_CYAN = new Color(194, 240, 242);
     private static final Color NAVY_DARK = new Color(55, 48, 163);
 
-    public StaffLoginPreview() {
+    public StaffLogin() {
         setTitle("Spin Laundromat Service - Employee Login");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
@@ -37,7 +38,7 @@ public class StaffLoginPreview extends JFrame {
         iconContainer.setOpaque(false);
         iconContainer.add(createBrandIcon());
 
-        JLabel brandTitle = new JLabel("Spin Laundromat Service");
+        JLabel brandTitle = new JLabel("Machine Wash");
         brandTitle.setFont(new Font("SansSerif", Font.BOLD, 28));
         brandTitle.setForeground(BRAND_PURPLE);
         brandTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -71,65 +72,92 @@ public class StaffLoginPreview extends JFrame {
 
         Dimension fieldSize = new Dimension(650, 55);
         // Create password field and toggle button
-JLabel uLabel = createFieldLabel("Username");
-usernameField = createStyledTextField("Enter your username", false);
+        JLabel uLabel = createFieldLabel("Username");
+        usernameField = createStyledTextField("Enter your username", false);
 
-JLabel pLabel = createFieldLabel("Password");
-passwordField = (JPasswordField) createStyledTextField("Enter your password", true);
+        JLabel pLabel = createFieldLabel("Password");
+        passwordField = (JPasswordField) createStyledTextField("Enter your password", true);
 
-// --- Eye toggle button ---
-JButton togglePasswordBtn = new JButton("👁");
-togglePasswordBtn.setFocusPainted(false);
-togglePasswordBtn.setBorderPainted(false);
-togglePasswordBtn.setContentAreaFilled(false);
-togglePasswordBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-togglePasswordBtn.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 16));
-togglePasswordBtn.setToolTipText("Show/Hide password");
+        // --- Eye toggle button ---
+        JButton togglePasswordBtn = new JButton() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(NAVY_DARK);
+                int cx = getWidth() / 2, cy = getHeight() / 2;
 
-// Track visibility state
-final boolean[] isVisible = {false};
+                if (passwordField.getEchoChar() == 0) {
+                    // Eye OPEN
+                    g2.drawOval(cx - 8, cy - 5, 16, 10);
+                    g2.fillOval(cx - 3, cy - 3, 6, 6);
+                } else {
+                    // Eye CLOSED
+                    g2.drawOval(cx - 8, cy - 5, 16, 10);
+                    g2.fillOval(cx - 3, cy - 3, 6, 6);
+                    g2.setStroke(new BasicStroke(2));
+                    g2.drawLine(cx - 10, cy + 6, cx + 10, cy - 6);
+                }
+                g2.dispose();
+            }
+        };
+        togglePasswordBtn.setFocusPainted(false);
+        togglePasswordBtn.setBorderPainted(false);
+        togglePasswordBtn.setContentAreaFilled(false);
+        togglePasswordBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        togglePasswordBtn.setToolTipText("Show/Hide password");
 
-togglePasswordBtn.addActionListener(e -> {
-    isVisible[0] = !isVisible[0];
-    if (isVisible[0]) {
-        passwordField.setEchoChar((char) 0); // Show password
-        togglePasswordBtn.setText("🙈");     // Change icon
-    } else {
-        passwordField.setEchoChar('•');     // Hide password●
-        togglePasswordBtn.setText("👁");     // Reset icon
-    }
-});
+        togglePasswordBtn.addActionListener(e -> {
+            if (passwordField.getEchoChar() == 0) {
+                passwordField.setEchoChar('•');
+            } else {
+                passwordField.setEchoChar((char) 0);
+            }
+            togglePasswordBtn.repaint();
+            passwordField.requestFocusInWindow();
+        });
 
-// --- Wrap password field + button in a panel ---
-JPanel passwordWrapper = new JPanel(new BorderLayout());
-passwordWrapper.setBackground(passwordField.getBackground());
-passwordWrapper.setBorder(passwordField.getBorder());
-passwordWrapper.setMaximumSize(passwordField.getMaximumSize()); // Keep same size
+        // --- Wrap password field + button in a panel ---
+        JPanel passwordWrapper = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(INPUT_BG);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), getHeight(), getHeight());
+                g2.setColor(INPUT_BORDER);
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, getHeight(), getHeight());
+                g2.dispose();
+            }
+        };
+        passwordWrapper.setOpaque(false);
+        passwordField.setOpaque(false);
+        passwordField.setBackground(new Color(0, 0, 0, 0));
+        passwordField.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 0));
+        passwordWrapper.add(passwordField, BorderLayout.CENTER);
+        passwordWrapper.add(togglePasswordBtn, BorderLayout.EAST);
+        togglePasswordBtn.setPreferredSize(new Dimension(50, 50));
+        usernameField.setMaximumSize(fieldSize);
+        usernameField.setPreferredSize(fieldSize);
+        usernameField.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-// Remove border from actual field to avoid double border
-passwordField.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 0));
-passwordWrapper.add(passwordField, BorderLayout.CENTER);
-passwordWrapper.add(togglePasswordBtn, BorderLayout.EAST);usernameField.setMaximumSize(fieldSize);
-usernameField.setPreferredSize(fieldSize);
-usernameField.setAlignmentX(Component.LEFT_ALIGNMENT);
+        // Password wrapper size
+        passwordWrapper.setMaximumSize(fieldSize);
+        passwordWrapper.setPreferredSize(fieldSize);
+        passwordWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-// Password wrapper size
-passwordWrapper.setMaximumSize(fieldSize);
-passwordWrapper.setPreferredSize(fieldSize);
-passwordWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-// Labels alignment
-uLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-pLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-formPanel.setLayout(new BoxLayout(formPanel, BoxLayout.Y_AXIS));
-// --- Add to form ---
-formPanel.add(uLabel);
-formPanel.add(Box.createVerticalStrut(8));
-formPanel.add(usernameField);
-formPanel.add(Box.createVerticalStrut(20));
-formPanel.add(pLabel);
-formPanel.add(Box.createVerticalStrut(8));
-formPanel.add(passwordWrapper); // Use wrapper instead of passwordField directly
+        // Labels alignment
+        uLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        pLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        formPanel.setLayout(new BoxLayout(formPanel, BoxLayout.Y_AXIS));
+        // --- Add to form ---
+        formPanel.add(uLabel);
+        formPanel.add(Box.createVerticalStrut(8));
+        formPanel.add(usernameField);
+        formPanel.add(Box.createVerticalStrut(20));
+        formPanel.add(pLabel);
+        formPanel.add(Box.createVerticalStrut(8));
+        formPanel.add(passwordWrapper); // Use wrapper instead of passwordField directly
 
         // 4. Sign In Button
         JButton signInBtn = createBlackSignInButton();
@@ -137,7 +165,7 @@ formPanel.add(passwordWrapper); // Use wrapper instead of passwordField directly
         signInBtn.addActionListener(e -> {
             // Mock Transition to Dashboard Preview
             this.dispose();
-            new DashboardPreview().display();
+            new Dashboard().display();
         });
 
         // 5. Footer Links
@@ -179,6 +207,15 @@ formPanel.add(passwordWrapper); // Use wrapper instead of passwordField directly
 
         root.add(verticalWrapper);
         add(root);
+
+        // Set Window Icon
+        try {
+            java.net.URL iconUrl = getClass().getResource("/src/resources/images/desktoplogo.png");
+            if (iconUrl != null) {
+                setIconImage(new ImageIcon(iconUrl).getImage());
+            }
+        } catch (Exception e) {
+        }
     }
 
     private JLabel createFieldLabel(String text) {
@@ -190,14 +227,25 @@ formPanel.add(passwordWrapper); // Use wrapper instead of passwordField directly
     }
 
     private JTextField createStyledTextField(String placeholder, boolean isPassword) {
-        JTextField field = isPassword ? new JPasswordField() : new JTextField();
+        JTextField field = isPassword ? new JPasswordField() : new JTextField() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(INPUT_BG);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), getHeight(), getHeight());
+                g2.setColor(INPUT_BORDER);
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, getHeight(), getHeight());
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
         field.setBackground(INPUT_BG);
+        field.setOpaque(false);
         field.setForeground(Color.BLACK);
         field.setCaretColor(Color.BLACK);
         field.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        field.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(INPUT_BORDER, 1),
-                BorderFactory.createEmptyBorder(12, 15, 12, 15)));
+        field.setBorder(BorderFactory.createEmptyBorder(12, 15, 12, 15));
         field.setMaximumSize(new Dimension(650, 45));
         field.setPreferredSize(new Dimension(650, 45));
         field.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -253,7 +301,7 @@ formPanel.add(passwordWrapper); // Use wrapper instead of passwordField directly
             private Image brandImg;
             {
                 try {
-                    java.net.URL imgUrl = getClass().getResource("/util/images/icons8-machine-wash-100.png");
+                    java.net.URL imgUrl = getClass().getResource("/src/resources/images/machine_wash.png");
                     if (imgUrl != null) {
                         brandImg = new ImageIcon(imgUrl).getImage();
                     }
@@ -326,6 +374,6 @@ formPanel.add(passwordWrapper); // Use wrapper instead of passwordField directly
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new StaffLoginPreview().display());
+        SwingUtilities.invokeLater(() -> new StaffLogin().display());
     }
 }

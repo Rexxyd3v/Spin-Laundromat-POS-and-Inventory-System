@@ -9,14 +9,14 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 
-public class SettingsPanelPreview extends JPanel {
+public class SettingsPanel extends JPanel {
     private String activeTab = "Store";
     private JPanel mainContainer;
     private JScrollPane scrollPane;
     private java.util.Map<String, JComponent> tabSections = new java.util.LinkedHashMap<>();
     private boolean isProgrammaticScroll = false;
 
-    public SettingsPanelPreview() {
+    public SettingsPanel() {
         setLayout(new BorderLayout());
         setBackground(UIStyle.BACKGROUND);
 

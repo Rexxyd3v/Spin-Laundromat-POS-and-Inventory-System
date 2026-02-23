@@ -191,9 +191,45 @@ public class StockManagementPanel extends JPanel {
         actionP.setOpaque(false);
         JButton updateBtn = buildActionButton("Update Stock", GREEN_BTN, 140, 38);
         updateBtn.addActionListener(e -> {
-            if (NotificationDialog.showUpdate(SwingUtilities.getWindowAncestor(actionP))) {
-                System.out.println("Stock Update Confirmed");
-                // Original update logic would go here
+            int selectedRow = stockTable.getSelectedRow();
+            if (selectedRow == -1) {
+                JOptionPane.showMessageDialog(this, "Please select a product to update.", "No Selection",
+                        JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            String productName = (String) stockModel.getValueAt(selectedRow, 0);
+            int currentStock = Integer.parseInt((String) stockModel.getValueAt(selectedRow, 2));
+            Object[] result = UpdateStockDialog.showUpdateStock(SwingUtilities.getWindowAncestor(this), productName,
+                    currentStock);
+
+            if (result != null) {
+                String type = (String) result[0];
+                int qty = Integer.parseInt((String) result[1]);
+
+                // Update Stock Model
+                int newStock = type.equals("Stock In") ? currentStock + qty : currentStock - qty;
+
+                if (newStock < 0) {
+                    JOptionPane.showMessageDialog(this, "Insufficient stock for this operation.", "Stock Error",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                stockModel.setValueAt(String.valueOf(newStock), selectedRow, 2);
+
+                // Update Status
+                int reorder = Integer.parseInt((String) stockModel.getValueAt(selectedRow, 3));
+                String status = newStock == 0 ? "Out of Stock" : (newStock <= reorder ? "Low Stock" : "In Stock");
+                stockModel.setValueAt(status, selectedRow, 4);
+
+                // Update History Model
+                String date = java.time.LocalDate.now().toString();
+                String qtyStr = (type.equals("Stock In") ? "+" : "-") + qty;
+                historyModel.insertRow(0, new Object[] { date, productName, type, qtyStr, "Admin" });
+
+                JOptionPane.showMessageDialog(this, "Stock for " + productName + " updated successfully!", "Success",
+                        JOptionPane.INFORMATION_MESSAGE);
             }
         });
         actionP.add(updateBtn);

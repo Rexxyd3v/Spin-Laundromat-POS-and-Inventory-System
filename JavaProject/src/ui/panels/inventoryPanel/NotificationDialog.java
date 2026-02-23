@@ -16,7 +16,7 @@ public class NotificationDialog extends JDialog {
     }
 
     public enum EntityType {
-        PRODUCT, CATEGORY, SUPPLIER
+        PRODUCT, CATEGORY, SUPPLIER, STOCK
     }
 
     private NotificationDialog(Window parent, EntityType entity, Type type) {
@@ -46,16 +46,23 @@ public class NotificationDialog extends JDialog {
             case PRODUCT -> "product";
             case CATEGORY -> "Category";
             case SUPPLIER -> "Supplier";
+            case STOCK -> "stock";
         };
 
-        String message = switch (type) {
-            case ADD -> "Add this " + entityName + "?";
-            case UPDATE -> "Update this " + entityName + "?";
-            case DELETE -> "Delete this " + entityName + "?";
-        };
+        String message;
+        if (entity == EntityType.STOCK && type == Type.UPDATE) {
+            message = "<html><center><font size='5'><b>Are you sure?</b></font><br>You want to update this stock?</center></html>";
+        } else {
+            message = switch (type) {
+                case ADD -> "Add this " + entityName + "?";
+                case UPDATE -> "Update this " + entityName + "?";
+                case DELETE -> "Delete this " + entityName + "?";
+            };
+        }
 
         JLabel lbl = new JLabel(message);
-        lbl.setFont(new Font("SansSerif", Font.BOLD, 18));
+        lbl.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        lbl.setHorizontalAlignment(SwingConstants.CENTER);
         lbl.setForeground(Color.BLACK);
         content.add(lbl, gbc);
 
@@ -135,6 +142,12 @@ public class NotificationDialog extends JDialog {
 
     public static boolean showDelete(Window parent) {
         NotificationDialog dialog = new NotificationDialog(parent, EntityType.PRODUCT, Type.DELETE);
+        dialog.setVisible(true);
+        return dialog.confirmed;
+    }
+
+    public static boolean showUpdateStock(Window parent) {
+        NotificationDialog dialog = new NotificationDialog(parent, EntityType.STOCK, Type.UPDATE);
         dialog.setVisible(true);
         return dialog.confirmed;
     }

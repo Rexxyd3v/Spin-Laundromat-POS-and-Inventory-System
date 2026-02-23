@@ -16,6 +16,8 @@ public class LaundryReportsSystem extends JPanel {
     private JTable reportTable;
     private DefaultTableModel tableModel;
     private JPanel tabPanel;
+    private ReceiptPanel receiptPanel;
+    private JPanel masterDetail;
 
     public LaundryReportsSystem() {
         tableModel = new DefaultTableModel();
@@ -86,8 +88,20 @@ public class LaundryReportsSystem extends JPanel {
         tablePanel.add(cardTitle, BorderLayout.NORTH);
 
         cardShadow.add(tablePanel);
-        contentWrapper.add(cardShadow, BorderLayout.CENTER);
 
+        // Master-Detail Layout
+        masterDetail = new JPanel(new BorderLayout(25, 0));
+        masterDetail.setOpaque(false);
+        masterDetail.add(cardShadow, BorderLayout.CENTER);
+
+        receiptPanel = new ReceiptPanel(() -> {
+            reportTable.clearSelection();
+            receiptPanel.setVisible(false);
+        });
+        receiptPanel.setVisible(false);
+        masterDetail.add(receiptPanel, BorderLayout.EAST);
+
+        contentWrapper.add(masterDetail, BorderLayout.CENTER);
         centerArea.add(contentWrapper, BorderLayout.CENTER);
         add(centerArea, BorderLayout.CENTER);
 
@@ -110,6 +124,9 @@ public class LaundryReportsSystem extends JPanel {
         cardTitle.setVisible(!isProfitability);
         if (!isProfitability) {
             cardTitle.setText(activeTab);
+        }
+        if (receiptPanel != null) {
+            receiptPanel.setVisible(false);
         }
         refreshTable();
         revalidate();
@@ -372,7 +389,37 @@ public class LaundryReportsSystem extends JPanel {
         scroll.getViewport().setBackground(new Color(248, 250, 252));
         scroll.setBackground(Color.WHITE);
 
+        // Selection Listener for Transaction History
+        if (activeTab.equals("Transaction History")) {
+            reportTable.getSelectionModel().addListSelectionListener(e -> {
+                if (!e.getValueIsAdjusting()) {
+                    int row = reportTable.getSelectedRow();
+                    if (row != -1) {
+                        showTransactionDetail(row);
+                    }
+                }
+            });
+        }
+
         return scroll;
+    }
+
+    private void showTransactionDetail(int row) {
+        String id = tableModel.getValueAt(row, 0).toString();
+        String date = tableModel.getValueAt(row, 1).toString();
+        String cashier = tableModel.getValueAt(row, 2).toString();
+        String items = tableModel.getValueAt(row, 3).toString();
+        String method = tableModel.getValueAt(row, 4).toString();
+        String total = tableModel.getValueAt(row, 5).toString();
+
+        // Sample data for details (Mocked for now)
+        String customer = (id.equals("1") || id.equals("1001")) ? "Jefferson" : "Cash Customer";
+        String[] services = items.split(", ");
+
+        receiptPanel.setData(id, customer, cashier, date.split(",")[0], services, total, method);
+        receiptPanel.setVisible(true);
+        revalidate();
+        repaint();
     }
 
     /** Helper for alternating row background */

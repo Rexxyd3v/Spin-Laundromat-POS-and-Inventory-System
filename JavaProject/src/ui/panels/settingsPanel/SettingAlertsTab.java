@@ -93,57 +93,56 @@ public class SettingAlertsTab extends JPanel {
     }
 
     private JPanel createStockThresholdCard() {
-        ShadowPanel card = new ShadowPanel();
-        card.setLayout(new BorderLayout());
-        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 800));
-        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+        ShadowPanel mainCard = new ShadowPanel();
+        mainCard.setLayout(new BorderLayout());
+        mainCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 450));
+        mainCard.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JPanel content = new JPanel();
         content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
         content.setBackground(Color.WHITE);
-        content.setBorder(new EmptyBorder(20, 25, 20, 25));
+        content.setBorder(new EmptyBorder(25, 30, 25, 30));
 
-        // Header
+        // Header with red icon
         JPanel cardHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         cardHeader.setBackground(Color.WHITE);
         cardHeader.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
         cardHeader.setAlignmentX(Component.LEFT_ALIGNMENT);
-        JLabel iconLbl = new JLabel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                BrandIcons.ALERTS_IMG.paint((Graphics2D) g, 0, 0, 24, UIStyle.TEXT_PRIMARY);
-            }
 
-            @Override
-            public Dimension getPreferredSize() {
-                return new Dimension(24, 24);
-            }
-        };
+        JLabel iconLbl = new JLabel("●");
+        iconLbl.setFont(new Font("SansSerif", Font.PLAIN, 24));
+        iconLbl.setForeground(new Color(239, 68, 68)); // Warning Red
+
         JLabel cardTitle = new JLabel("Stock Alert Configuration");
         cardTitle.setFont(new Font("SansSerif", Font.BOLD, 16));
+        cardTitle.setForeground(UIStyle.TEXT_PRIMARY);
+
         cardHeader.add(iconLbl);
         cardHeader.add(cardTitle);
         content.add(cardHeader);
-        content.add(Box.createVerticalStrut(5));
+        content.add(Box.createVerticalStrut(2));
 
         JLabel subtitle = new JLabel("Stock Alert & Threshold & Colors");
-        subtitle.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        subtitle.setForeground(UIStyle.TEXT_SECONDARY);
+        subtitle.setFont(new Font("SansSerif", Font.BOLD, 12));
+        subtitle.setForeground(new Color(156, 163, 175)); // Lighter Gray
+        subtitle.setBorder(new EmptyBorder(0, 36, 0, 0));
         subtitle.setAlignmentX(Component.LEFT_ALIGNMENT);
         content.add(subtitle);
         content.add(Box.createVerticalStrut(15));
 
-        JPanel alertsRow = new JPanel(new GridLayout(0, 3, 15, 0));
+        JPanel alertsRow = new JPanel(new GridLayout(1, 3, 20, 0));
         alertsRow.setBackground(Color.WHITE);
-        alertsRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 180));
+        alertsRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 280));
         alertsRow.setAlignmentX(Component.LEFT_ALIGNMENT);
-        alertsRow.add(createAlertThresholdSection("Low Stock Alert", "#FFADE9E"));
-        alertsRow.add(createAlertThresholdSection("Critical Stock Alert", "#F2E632"));
-        alertsRow.add(createAlertThresholdSection("Out of Stock Alert", "#D0806E"));
+
+        // title, colorCode, titleColor
+        alertsRow.add(createAlertThresholdSection("Low Stock Alert", "#F1A62E", "#84CC16"));
+        alertsRow.add(createAlertThresholdSection("Critical Stock Alert", "#F12E32", "#EF4444"));
+        alertsRow.add(createAlertThresholdSection("Out of Stock Alert", "#D20B0E", "#EF4444"));
         content.add(alertsRow);
 
-        card.add(content, BorderLayout.CENTER);
-        return card;
+        mainCard.add(content, BorderLayout.CENTER);
+        return mainCard;
     }
 
     private JLabel createSectionHeader(String text) {
@@ -185,54 +184,59 @@ public class SettingAlertsTab extends JPanel {
         return row;
     }
 
-    private JPanel createAlertThresholdSection(String title, String colorCode) {
-        JPanel section = new JPanel();
-        section.setLayout(new BoxLayout(section, BoxLayout.Y_AXIS));
-        section.setBackground(Color.WHITE);
-        section.setAlignmentX(Component.LEFT_ALIGNMENT);
+    private JPanel createAlertThresholdSection(String title, String colorCode, String titleColor) {
+        JPanel wrapper = new JPanel(new BorderLayout());
+        wrapper.setOpaque(false);
+
+        ShadowPanel innerCard = new ShadowPanel();
+        innerCard.setLayout(new BoxLayout(innerCard, BoxLayout.Y_AXIS));
+        innerCard.setBackground(Color.WHITE);
+        innerCard.setBorder(new EmptyBorder(15, 20, 15, 20));
 
         JLabel titleLbl = new JLabel(title);
-        titleLbl.setFont(new Font("SansSerif", Font.BOLD, 13));
-        titleLbl.setForeground(UIStyle.TEXT_PRIMARY);
+        titleLbl.setFont(new Font("SansSerif", Font.BOLD, 14));
+        titleLbl.setForeground(Color.decode(titleColor));
         titleLbl.setAlignmentX(Component.LEFT_ALIGNMENT);
-        section.add(titleLbl);
-        section.add(Box.createVerticalStrut(8));
+        innerCard.add(titleLbl);
+        innerCard.add(Box.createVerticalStrut(12));
 
         JLabel thresholdLbl = new JLabel("Threshold");
-        thresholdLbl.setFont(new Font("SansSerif", Font.PLAIN, 11));
-        thresholdLbl.setForeground(UIStyle.TEXT_SECONDARY);
+        thresholdLbl.setFont(new Font("SansSerif", Font.BOLD, 12));
+        thresholdLbl.setForeground(UIStyle.TEXT_PRIMARY);
         thresholdLbl.setAlignmentX(Component.LEFT_ALIGNMENT);
-        section.add(thresholdLbl);
-        section.add(Box.createVerticalStrut(4));
+        innerCard.add(thresholdLbl);
+        innerCard.add(Box.createVerticalStrut(6));
 
-        JTextField thresholdField = new RoundedTextField("");
-        thresholdField.setPreferredSize(new Dimension(0, 50));
-        thresholdField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
+        String defaultVal = title.contains("Low") ? "20" : (title.contains("Critical") ? "10" : "0");
+        RoundedTextField thresholdField = new RoundedTextField(defaultVal);
+        thresholdField.setPreferredSize(new Dimension(150, 40));
+        thresholdField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+        thresholdField.setBackground(new Color(237, 233, 233)); // "Medyo gray"
         thresholdField.setAlignmentX(Component.LEFT_ALIGNMENT);
-        section.add(thresholdField);
-        section.add(Box.createVerticalStrut(8));
+        innerCard.add(thresholdField);
+        innerCard.add(Box.createVerticalStrut(12));
 
         JLabel colorLbl = new JLabel("Alert Color");
-        colorLbl.setFont(new Font("SansSerif", Font.PLAIN, 11));
-        colorLbl.setForeground(UIStyle.TEXT_SECONDARY);
+        colorLbl.setFont(new Font("SansSerif", Font.BOLD, 12));
+        colorLbl.setForeground(UIStyle.TEXT_PRIMARY);
         colorLbl.setAlignmentX(Component.LEFT_ALIGNMENT);
-        section.add(colorLbl);
-        section.add(Box.createVerticalStrut(4));
+        innerCard.add(colorLbl);
+        innerCard.add(Box.createVerticalStrut(8));
 
-        JPanel colorPanel = new JPanel(new BorderLayout(8, 0));
-        colorPanel.setBackground(Color.WHITE);
-        colorPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 32));
-        colorPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JPanel colorRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        colorRow.setOpaque(false);
+        colorRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+
         JPanel colorBox = new JPanel();
-        colorBox.setPreferredSize(new Dimension(32, 32));
+        colorBox.setPreferredSize(new Dimension(60, 30));
         colorBox.setBackground(Color.decode(colorCode));
         colorBox.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240), 1));
         colorBox.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        JTextField colorField = new RoundedTextField(colorCode);
-        colorField.setPreferredSize(new Dimension(100, 50));
-        colorField.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        colorField.setFocusable(false); // Make it read-only but clickable for the picker
+        JLabel hexLbl = new JLabel(colorCode.toUpperCase());
+        hexLbl.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        hexLbl.setForeground(UIStyle.TEXT_SECONDARY);
+        hexLbl.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
         java.awt.event.MouseAdapter colorPickerListener = new java.awt.event.MouseAdapter() {
             @Override
@@ -244,19 +248,21 @@ public class SettingAlertsTab extends JPanel {
                     colorBox.setBackground(selectedColor);
                     String hex = String.format("#%02X%02X%02X", selectedColor.getRed(), selectedColor.getGreen(),
                             selectedColor.getBlue());
-                    colorField.setText(hex);
+                    hexLbl.setText(hex);
                 }
             }
         };
 
         colorBox.addMouseListener(colorPickerListener);
-        colorField.addMouseListener(colorPickerListener);
+        hexLbl.addMouseListener(colorPickerListener);
 
-        colorPanel.add(colorBox, BorderLayout.WEST);
-        colorPanel.add(colorField, BorderLayout.CENTER);
-        section.add(colorPanel);
+        colorRow.add(colorBox);
+        colorRow.add(hexLbl);
 
-        return section;
+        innerCard.add(colorRow);
+
+        wrapper.add(innerCard);
+        return wrapper;
     }
 
     private JButton createStyledButton(String text, Color bg) {
@@ -328,9 +334,9 @@ public class SettingAlertsTab extends JPanel {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g2.setColor(getBackground());
-            g2.fillRoundRect(0, 0, getWidth(), getHeight(), getHeight(), getHeight()); // Pill shape
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10); // Standard rounded rect
             g2.setColor(new Color(226, 232, 240));
-            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, getHeight(), getHeight());
+            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
             g2.dispose();
             super.paintComponent(g);
         }

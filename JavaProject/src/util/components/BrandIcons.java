@@ -14,18 +14,7 @@ public class BrandIcons {
         g2.fillRect(x + 4, y + 12, 4, 4);
     };
 
-    public static final SidebarButton.IconPainter BRAND_WASH = (g2, x, y, size, color) -> {
-        g2.setColor(color);
-        g2.setStroke(new BasicStroke(size * 0.05f));
-        // Machine Body
-        int pad = (int) (size * 0.15);
-        g2.drawRoundRect(x + pad, y + pad + 5, size - pad * 2, size - pad * 2 - 5, 5, 5);
-        // Inner Circle (Door)
-        int circleSize = (int) (size * 0.5);
-        g2.drawOval(x + (size - circleSize) / 2, y + (size - circleSize) / 2 + 3, circleSize, circleSize);
-        // Water wavy line inside circle
-        g2.drawArc(x + (size - circleSize) / 2 + 5, y + (size - circleSize) / 2 + 10, circleSize - 10, 8, 0, -180);
-    };
+    public static final SidebarButton.IconPainter BRAND_WASH = fromImage("/src/resources/images/machine_wash.png");
 
     public static final SidebarButton.IconPainter POS = (g2, x, y, size, color) -> {
         g2.setColor(color);

@@ -132,8 +132,8 @@ public class UserTableRenderers {
                 badge.setup(
                         role.getDisplayName(),
                         isAdmin ? "ADMIN" : "STAFF",
-                        isAdmin ? new Color(31, 41, 55) : new Color(224, 242, 254),
-                        isAdmin ? Color.WHITE : new Color(3, 105, 161));
+                        isAdmin ? new Color(79, 70, 229) : new Color(20, 184, 166), // Indigo 600 : Teal 500
+                        Color.WHITE);
             }
             return cell;
         }
@@ -279,10 +279,14 @@ public class UserTableRenderers {
             g2.setColor(getForeground());
             int h = getHeight();
             if ("ADMIN".equals(iconType)) {
-                g2.drawRoundRect(10, h / 3, 10, 8, 2, 2);
+                // Draw Shield Icon
+                int[] xPoints = { 10, 15, 20, 20, 15, 10 };
+                int[] yPoints = { h / 2 - 5, h / 2 - 6, h / 2 - 5, h / 2 + 2, h / 2 + 5, h / 2 + 2 };
+                g2.fillPolygon(xPoints, yPoints, 6);
             } else {
-                g2.fillOval(10, h / 4, 6, 6);
-                g2.fillArc(8, h / 2, 10, 6, 0, 180);
+                // Draw Person Icon
+                g2.fillOval(12, h / 2 - 5, 6, 6);
+                g2.fillArc(10, h / 2, 10, 8, 0, 180);
             }
             g2.dispose();
             super.paintComponent(g);
