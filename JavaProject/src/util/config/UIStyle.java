@@ -1,32 +1,92 @@
-package src.util.config;
+package util.config;
 
-import java.awt.Color;
-import java.awt.Font;
+import java.awt.*;
+import javax.swing.*;
 
-public class UIStyle {
-    public static final Color PRIMARY = new Color(59, 130, 246); // Primary Blue #3B82F6
-    public static final Color ACCENT_BLUE = new Color(14, 165, 233); // Bright Blue #0EA5E9
-    public static final Color SECONDARY = new Color(139, 92, 246);
-    public static final Color BACKGROUND = new Color(194, 240, 242); // Light Cyan #C2F0F2
-    public static final Color SIDEBAR_BG = Color.WHITE;
-    public static final Color SIDEBAR_DIVIDER = new Color(226, 232, 240);
-    public static final Color CARD_BG = Color.WHITE;
-    public static final Color TEXT_PRIMARY = new Color(15, 23, 42); // Darker Blue/Black #0F172A
-    public static final Color TEXT_SECONDARY = new Color(100, 116, 139);
-    public static final Color SUCCESS = new Color(34, 197, 94);
-    public static final Color WARNING = new Color(245, 158, 11);
-    public static final Color DANGER = new Color(239, 68, 68);
-    public static final Color WHITE = Color.WHITE;
-    public static final Color INPUT_BORDER = new Color(226, 232, 240);
-    public static final Color CHART_GRID = new Color(241, 245, 249);
-    public static final Color BORDER_LIGHT = new Color(243, 244, 246);
-    public static final Color BRAND_BROWN = new Color(74, 57, 51); // #4A3933
+public final class UIStyle {
+    public static final Color YELLOW = Color.decode("#F4C542");
+    public static Color PRIMARY = accent(PosSettings.get().accent());
+    public static final Color BACKGROUND = Color.decode("#F5F7FB"), SIDEBAR_BG = Color.decode("#111827"),
+            SIDEBAR_DIVIDER = Color.decode("#263244"), CARD_BG = Color.WHITE;
+    public static final Color TEXT_PRIMARY = Color.decode("#111827"), TEXT_SECONDARY = Color.decode("#64748B"),
+            SUCCESS = Color.decode("#15803D"), WARNING = Color.decode("#B45309"), DANGER = Color.decode("#B91C1C"),
+            WHITE = Color.WHITE;
+    public static final Color INPUT_BORDER = Color.decode("#E2E8F0");
+    public static final Font TITLE = new Font("Segoe UI", Font.BOLD, 28),
+            SUBTITLE = new Font("Segoe UI", Font.BOLD, 18), REGULAR = new Font("Segoe UI", Font.PLAIN, 14),
+            SMALL = new Font("Segoe UI", Font.PLAIN, 12), BOLD = new Font("Segoe UI", Font.BOLD, 14),
+            BRAND = new Font("Segoe UI", Font.BOLD, 20);
+    static {
+        PosSettings.addListener(event -> {
+            Color old = PRIMARY;
+            PRIMARY = accent(PosSettings.get().accent());
+            installDefaults();
+            for (Window w : Window.getWindows()) {
+                recolor(w, old);
+                w.repaint();
+            }
+        });
+    }
+    private static boolean installed;
 
-    // FONTS
-    public static final Font TITLE = new Font("SansSerif", Font.BOLD, 24);
-    public static final Font SUBTITLE = new Font("SansSerif", Font.BOLD, 18);
-    public static final Font REGULAR = new Font("SansSerif", Font.PLAIN, 14);
-    public static final Font SMALL = new Font("SansSerif", Font.PLAIN, 12);
-    public static final Font BOLD = new Font("SansSerif", Font.BOLD, 14);
-    public static final Font BRAND = new Font("SansSerif", Font.BOLD, 20);
+    private UIStyle() {
+    }
+
+    public static Color accent(String name) {
+        return Color.decode(switch (name) {
+        case "Blue" -> "#1D4ED8";
+        case "Violet" -> "#6D28D9";
+        default -> "#0F766E";
+        });
+    }
+
+    public static Color tint() {
+        return new Color((PRIMARY.getRed() + 255 * 9) / 10, (PRIMARY.getGreen() + 255 * 9) / 10,
+                (PRIMARY.getBlue() + 255 * 9) / 10);
+    }
+
+    public static void installDefaults() {
+        if (!installed) {
+            try {
+                UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel");
+            } catch (Exception ignored) {
+            }
+            installed = true;
+        }
+        UIManager.put("defaultFont", REGULAR);
+        UIManager.put("control", CARD_BG);
+        UIManager.put("nimbusBase", PRIMARY);
+        UIManager.put("nimbusFocus", PRIMARY);
+        UIManager.put("nimbusSelectionBackground", PRIMARY);
+        UIManager.put("nimbusBlueGrey", INPUT_BORDER);
+        UIManager.put("Separator.foreground", INPUT_BORDER);
+        for (String key : new String[] { "Label.font", "Button.font", "TextField.font", "TextArea.font",
+                "ComboBox.font", "CheckBox.font", "Table.font", "TabbedPane.font", "OptionPane.messageFont",
+                "OptionPane.buttonFont", "Spinner.font" })
+            UIManager.put(key, REGULAR);
+        UIManager.put("Panel.background", CARD_BG);
+        UIManager.put("Label.foreground", TEXT_PRIMARY);
+        UIManager.put("TextField.selectionBackground", PRIMARY);
+        UIManager.put("TextField.selectionForeground", WHITE);
+        UIManager.put("Table.selectionBackground", tint());
+        UIManager.put("Table.selectionForeground", TEXT_PRIMARY);
+        UIManager.put("OptionPane.errorIcon",
+                new util.components.AppIcon(util.components.AppIcon.Name.WARNING, 28, DANGER));
+        UIManager.put("OptionPane.warningIcon",
+                new util.components.AppIcon(util.components.AppIcon.Name.WARNING, 28, WARNING));
+        UIManager.put("OptionPane.informationIcon",
+                new util.components.AppIcon(util.components.AppIcon.Name.CHECK, 28, PRIMARY));
+        UIManager.put("OptionPane.questionIcon",
+                new util.components.AppIcon(util.components.AppIcon.Name.BELL, 28, PRIMARY));
+    }
+
+    private static void recolor(Component c, Color previous) {
+        if (previous.equals(c.getForeground()))
+            c.setForeground(PRIMARY);
+        if (previous.equals(c.getBackground()))
+            c.setBackground(PRIMARY);
+        if (c instanceof Container container)
+            for (Component child : container.getComponents())
+                recolor(child, previous);
+    }
 }

@@ -1,11 +1,21 @@
-package src.util.components;
+package util.components;
 
 import javax.swing.*;
 import javax.swing.plaf.basic.BasicScrollBarUI;
 import java.awt.*;
 
 public class Scrollbar extends BasicScrollBarUI {
-    private final int THICKNESS = 8;
+    private final int THICKNESS = 6;
+    private final Color idle, hover;
+
+    public Scrollbar() {
+        this(new Color(203, 213, 225), new Color(148, 163, 184));
+    }
+
+    public Scrollbar(Color idle, Color hover) {
+        this.idle = idle;
+        this.hover = hover;
+    }
 
     @Override
     protected JButton createDecreaseButton(int orientation) {
@@ -35,11 +45,11 @@ public class Scrollbar extends BasicScrollBarUI {
         Graphics2D g2 = (Graphics2D) g.create();
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        Color color = new Color(203, 213, 225); // Slate 300 (Gray)
+        Color color = idle;
         if (isDragging) {
-            color = new Color(148, 163, 184); // Slate 400
+            color = hover;
         } else if (isThumbRollover()) {
-            color = new Color(148, 163, 184); // Slate 400
+            color = hover;
         }
 
         g2.setColor(color);

@@ -1,439 +1,234 @@
-package src.ui.panels.settingsPanel;
+package ui.panels.settingsPanel;
 
-import src.util.components.ShadowPanel;
-import src.util.components.SidebarButton;
-import src.util.components.BrandIcons;
-import src.util.config.*;
-import src.util.components.Scrollbar;
+import java.awt.*;
+import java.math.BigDecimal;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import java.awt.*;
+import util.components.*;
+import util.config.*;
+import static util.components.ModernUI.*;
 
-public class SettingsPanel extends JPanel {
-    private String activeTab = "Store";
-    private JPanel mainContainer;
-    private JScrollPane scrollPane;
-    private java.util.Map<String, JComponent> tabSections = new java.util.LinkedHashMap<>();
-    private boolean isProgrammaticScroll = false;
+public class SettingsPanel extends PageLayout {
+    private final JTextField store = field("Store name"), phone = field("Store phone"), rate = field("Tax percentage");
+    private final JTextArea address = new JTextArea(3, 30), footer = new JTextArea(3, 30);
+    private final JComboBox<String> accent = combo(new String[] { "Teal", "Blue", "Violet" });
+    private final JCheckBox compact = new JCheckBox("Use compact catalog cards"),
+            list = new JCheckBox("Open the catalog in list view"), tax = new JCheckBox("Add tax to the subtotal"),
+            gcash = new JCheckBox("Record verified GCash payments");
+    private final JLabel status = label("Changes apply after saving.", UIStyle.SMALL, UIStyle.TEXT_SECONDARY),
+            previewName = label("", UIStyle.BRAND, UIStyle.TEXT_PRIMARY);
+    private final JButton save = button("Save changes", AppIcon.Name.CHECK, true),
+            reset = button("Restore defaults", null, false);
+    private final JPanel sections = new JPanel(new CardLayout()), nav = column();
+    private String active = "Appearance";
+    private final JComboBox<Integer> receiptWidth = combo(new Integer[] { 58, 80 });
 
     public SettingsPanel() {
-        setLayout(new BorderLayout());
-        setBackground(UIStyle.BACKGROUND);
-
-        // Create sticky header section
-        JPanel stickyHeader = new JPanel();
-        stickyHeader.setLayout(new BoxLayout(stickyHeader, BoxLayout.Y_AXIS));
-        stickyHeader.setBackground(UIStyle.BACKGROUND);
-        stickyHeader.setBorder(new EmptyBorder(30, 40, 0, 40));
-
-        // Header
-        JPanel headerPanel = new JPanel();
-        headerPanel.setLayout(new BoxLayout(headerPanel, BoxLayout.Y_AXIS));
-        headerPanel.setBackground(UIStyle.BACKGROUND);
-        headerPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JLabel title = new JLabel("System Settings");
-        title.setFont(new Font("SansSerif", Font.BOLD, 28));
-        title.setForeground(UIStyle.TEXT_PRIMARY);
-
-        JLabel subtitle = new JLabel("Configure your POS system and preferences");
-        subtitle.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        subtitle.setForeground(UIStyle.TEXT_SECONDARY);
-
-        headerPanel.add(title);
-        headerPanel.add(Box.createVerticalStrut(5));
-        headerPanel.add(subtitle);
-
-        stickyHeader.add(headerPanel);
-        stickyHeader.add(Box.createVerticalStrut(25));
-
-        // Tab Bar
-        stickyHeader.add(createTabBar());
-        stickyHeader.add(Box.createVerticalStrut(15));
-
-        add(stickyHeader, BorderLayout.NORTH);
-
-        mainContainer = new JPanel();
-        mainContainer.setLayout(new BoxLayout(mainContainer, BoxLayout.Y_AXIS));
-        mainContainer.setBackground(UIStyle.BACKGROUND);
-        mainContainer.setBorder(new EmptyBorder(10, 40, 30, 40));
-
-        // Load all tap content sections
-        initTabSections();
-
-        scrollPane = new JScrollPane(mainContainer);
-        scrollPane.getVerticalScrollBar().setUI(new Scrollbar());
-        scrollPane.setBorder(null);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-        scrollPane.setBackground(UIStyle.BACKGROUND);
-        scrollPane.getViewport().setBackground(UIStyle.BACKGROUND);
-
-        // Add scroll listener for automatic tab switching
-        scrollPane.getVerticalScrollBar().addAdjustmentListener(e -> {
-            if (!isProgrammaticScroll) {
-                updateActiveTabOnScroll();
+        super("WORKSPACE SETTINGS", "Your store, your way.", "Fine-tune the details that make this workspace yours.");
+        for (JTextArea area : new JTextArea[] { address, footer }) {
+            area.setFont(UIStyle.REGULAR);
+            area.setLineWrap(true);
+            area.setWrapStyleWord(true);
+            area.setBorder(new EmptyBorder(10, 10, 10, 10));
+        }
+        address.getAccessibleContext().setAccessibleName("Store address");
+        footer.getAccessibleContext().setAccessibleName("Receipt footer");
+        nav.setPreferredSize(new Dimension(170, 200));
+        sections.setOpaque(false);
+        sections.add(appearance(), "Appearance");
+        sections.add(branding(), "Store & receipt");
+        sections.add(pricing(), "Checkout");
+        sections.add(new ui.panels.DataToolsPanel(), "Data & backup");
+        JPanel content = new JPanel(new BorderLayout(24, 0));
+        content.setOpaque(false);
+        content.add(nav, BorderLayout.WEST);
+        content.add(sections, BorderLayout.CENTER);
+        body.add(content, BorderLayout.CENTER);
+        Surface bottom = new Surface();
+        bottom.setBorder(new EmptyBorder(12, 16, 12, 16));
+        JPanel controls = row(8);
+        controls.add(reset);
+        controls.add(save);
+        bottom.add(status, BorderLayout.CENTER);
+        bottom.add(controls, BorderLayout.EAST);
+        body.add(bottom, BorderLayout.SOUTH);
+        save.addActionListener(e -> save());
+        reset.addActionListener(e -> {
+            if (JOptionPane.showConfirmDialog(this, "Load the default settings into this form? Save to apply them.",
+                    "Restore defaults", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
+                load(persistence.Repositories.settings().defaults());
+                status.setText("Defaults loaded. Save changes to apply.");
             }
         });
-
-        add(scrollPane, BorderLayout.CENTER);
-    }
-
-    private void initTabSections() {
-        // Store
-        SettingStoreTab storeTab = new SettingStoreTab();
-        tabSections.put("Store", storeTab);
-        mainContainer.add(storeTab);
-        mainContainer.add(Box.createVerticalStrut(30));
-
-        // System
-        JPanel systemTab = createSystemConfigCard();
-        tabSections.put("System", systemTab);
-        mainContainer.add(systemTab);
-        mainContainer.add(Box.createVerticalStrut(30));
-
-        // Receipt
-        SettingReceiptTab receiptTab = new SettingReceiptTab();
-        tabSections.put("Receipt", receiptTab);
-        mainContainer.add(receiptTab);
-        mainContainer.add(Box.createVerticalStrut(30));
-
-        // Security
-        SettingSecurityTab securityTab = new SettingSecurityTab();
-        tabSections.put("Security", securityTab);
-        mainContainer.add(securityTab);
-        mainContainer.add(Box.createVerticalStrut(30));
-
-        // Alerts
-        SettingAlertsTab alertsTab = new SettingAlertsTab();
-        tabSections.put("Alerts", alertsTab);
-        mainContainer.add(alertsTab);
-        mainContainer.add(Box.createVerticalStrut(30));
-
-        // Backup
-        SettingBackupTab backupTab = new SettingBackupTab();
-        tabSections.put("Backup", backupTab);
-        mainContainer.add(backupTab);
-
-        mainContainer.add(Box.createVerticalStrut(200)); // Padding at bottom
-    }
-
-    private void updateActiveTabOnScroll() {
-        String newActiveTab = activeTab;
-        int viewportTop = scrollPane.getViewport().getViewPosition().y;
-
-        for (java.util.Map.Entry<String, JComponent> entry : tabSections.entrySet()) {
-            if (entry.getValue().getY() <= viewportTop + 100) {
-                newActiveTab = entry.getKey();
-            }
-        }
-
-        if (!newActiveTab.equals(activeTab)) {
-            activeTab = newActiveTab;
-            repaint(); // Repaint tab bar to show new active state
+        accent.addActionListener(e -> updatePreview());
+        load(persistence.Repositories.settings().get());
+        navigation();
+        if (persistence.Repositories.settings().loadError() != null) {
+            status.setForeground(UIStyle.WARNING);
+            status.setText("Saved settings need attention; defaults are shown.");
         }
     }
 
-    private void switchTab(String tabName) {
-        activeTab = tabName;
-        JComponent target = tabSections.get(tabName);
-        if (target != null) {
-            isProgrammaticScroll = true;
-            // Scroll to the target component
-            Rectangle rect = target.getBounds();
-            // Adjust to show header a bit better
-            rect.y -= 25;
-            rect.height = scrollPane.getViewport().getHeight();
-            mainContainer.scrollRectToVisible(rect);
-
-            Timer timer = new Timer(500, e -> isProgrammaticScroll = false);
-            timer.setRepeats(false);
-            timer.start();
+    private void navigation() {
+        nav.removeAll();
+        String[] names = { "Appearance", "Store & receipt", "Checkout", "Data & backup" };
+        AppIcon.Name[] icons = { AppIcon.Name.SETTINGS, AppIcon.Name.STORE, AppIcon.Name.CARD, AppIcon.Name.DOWNLOAD };
+        for (int i = 0; i < names.length; i++) {
+            String name = names[i];
+            JButton b = button(name, icons[i], active.equals(name));
+            b.setMaximumSize(new Dimension(Integer.MAX_VALUE, 46));
+            b.setAlignmentX(LEFT_ALIGNMENT);
+            b.addActionListener(e -> {
+                active = name;
+                ((CardLayout) sections.getLayout()).show(sections, name);
+                navigation();
+            });
+            nav.add(b);
+            nav.add(Box.createVerticalStrut(8));
         }
-        repaint();
+        nav.revalidate();
+        nav.repaint();
     }
 
-    private JPanel createTabBar() {
-        JPanel tabContainer = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5)) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+    private JPanel form(String title, String description) {
+        Surface p = new Surface();
+        p.setLayout(new BorderLayout(0, 22));
+        JPanel header = column();
+        header.add(label(title, UIStyle.SUBTITLE, UIStyle.TEXT_PRIMARY));
+        header.add(Box.createVerticalStrut(6));
+        header.add(label(description, UIStyle.SMALL, UIStyle.TEXT_SECONDARY));
+        p.add(header, BorderLayout.NORTH);
+        return p;
+    }
 
-                // Shadow / Border effect
-                g2.setColor(new Color(0, 0, 0, 10));
-                g2.fillRoundRect(2, 2, getWidth() - 4, getHeight() - 4, 30, 30);
+    private void addField(JPanel p, JComponent c) {
+        c.setAlignmentX(LEFT_ALIGNMENT);
+        c.setMaximumSize(new Dimension(Integer.MAX_VALUE, c.getPreferredSize().height));
+        p.add(c);
+        p.add(Box.createVerticalStrut(20));
+    }
 
-                g2.setColor(Color.WHITE);
-                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 30, 30);
-
-                g2.setColor(new Color(226, 232, 240)); // Slate 200 border
-                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 30, 30);
-
-                g2.dispose();
+    private JPanel appearance() {
+        JPanel card = form("Appearance", "Choose a look that feels right for your store.");
+        JPanel fields = column();
+        addField(fields, formField("Accent color", accent));
+        compact.setOpaque(false);
+        list.setOpaque(false);
+        addField(fields, compact);
+        addField(fields, list);
+        JPanel preview = new JPanel(new BorderLayout(0, 12)) {
+            protected void paintComponent(Graphics graphics) {
+                Graphics2D g = (Graphics2D) graphics.create();
+                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g.setColor(UIStyle.BACKGROUND);
+                g.fillRoundRect(0, 0, getWidth(), getHeight(), 14, 14);
+                g.dispose();
             }
         };
-        tabContainer.setOpaque(false);
-        tabContainer.setBackground(Color.WHITE);
-        tabContainer.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
-        tabContainer.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        tabContainer.add(createTabButton("Store", BrandIcons.STORE_IMG));
-        tabContainer.add(createTabButton("System", BrandIcons.SYSTEM_IMG));
-        tabContainer.add(createTabButton("Receipt", BrandIcons.RECEIPT_IMG));
-        tabContainer.add(createTabButton("Security", BrandIcons.SECURITY_IMG));
-        tabContainer.add(createTabButton("Alerts", BrandIcons.ALERTS_IMG));
-        tabContainer.add(createTabButton("Backup", BrandIcons.BACKUP_IMG));
-
-        return tabContainer;
-    }
-
-    private JButton createTabButton(String text, SidebarButton.IconPainter icon) {
-        JButton btn = new JButton(text) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                boolean isActive = text.equals(activeTab);
-                if (isActive) {
-                    g2.setColor(new Color(241, 245, 249));
-                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), getHeight(), getHeight()); // Pill shape
-                }
-                int iconSize = 20;
-                int iconX = 15; // Adjusted padding
-                int iconY = (getHeight() - iconSize) / 2;
-
-                // Alert icon in tab bar is red in mockup
-                Color color = isActive ? UIStyle.TEXT_PRIMARY : UIStyle.TEXT_SECONDARY;
-                if (text.equals("Alerts")) {
-                    color = new Color(220, 38, 38);
-                }
-
-                icon.paint(g2, iconX, iconY, iconSize, color);
-
-                // Hover/Press feedback for tab buttons
-                if (getModel().isPressed()) {
-                    g2.setColor(new Color(0, 0, 0, 20)); // Subtle overlay
-                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), getHeight(), getHeight());
-                } else if (getModel().isRollover()) {
-                    g2.setColor(new Color(0, 0, 0, 10)); // Subtle overlay
-                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), getHeight(), getHeight());
-                }
-
-                g2.setColor(isActive ? UIStyle.TEXT_PRIMARY : UIStyle.TEXT_SECONDARY);
-                g2.setFont(new Font("SansSerif", isActive ? Font.BOLD : Font.PLAIN, 13));
-                FontMetrics fm = g2.getFontMetrics();
-                g2.drawString(getText(), iconX + iconSize + 10, (getHeight() + fm.getAscent() - fm.getDescent()) / 2);
-                g2.dispose();
-            }
-
-            @Override
-            public Dimension getPreferredSize() {
-                FontMetrics fm = getFontMetrics(new Font("SansSerif", Font.BOLD, 13));
-                int width = 15 + 20 + 10 + fm.stringWidth(getText()) + 15;
-                return new Dimension(width, 42);
-            }
-        };
-        btn.addActionListener(e -> switchTab(text));
-        btn.setOpaque(false);
-        btn.setContentAreaFilled(false);
-        btn.setBorderPainted(false);
-        btn.setFocusPainted(false);
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        btn.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseEntered(java.awt.event.MouseEvent e) {
-                btn.repaint();
-            }
-
-            @Override
-            public void mouseExited(java.awt.event.MouseEvent e) {
-                btn.repaint();
-            }
-
-            @Override
-            public void mousePressed(java.awt.event.MouseEvent e) {
-                btn.repaint();
-            }
-
-            @Override
-            public void mouseReleased(java.awt.event.MouseEvent e) {
-                btn.repaint();
-            }
+        preview.setOpaque(false);
+        preview.setBorder(new EmptyBorder(20, 20, 20, 20));
+        preview.setPreferredSize(new Dimension(300, 156));
+        preview.setMaximumSize(new Dimension(Integer.MAX_VALUE, 156));
+        preview.add(previewName, BorderLayout.NORTH);
+        preview.add(label("A little color. A clearer workspace.", UIStyle.SMALL, UIStyle.TEXT_SECONDARY),
+                BorderLayout.CENTER);
+        JLabel button = label("Checkout", UIStyle.BOLD, Color.WHITE);
+        button.setHorizontalAlignment(SwingConstants.CENTER);
+        button.setPreferredSize(new Dimension(120, 42));
+        button.setOpaque(true);
+        preview.add(button, BorderLayout.SOUTH);
+        accent.addActionListener(e -> {
+            button.setBackground(UIStyle.accent((String) accent.getSelectedItem()));
+            preview.repaint();
         });
-
-        return btn;
-    }
-
-    private JPanel createSystemConfigCard() {
-        ShadowPanel card = new ShadowPanel();
-        card.setLayout(new BorderLayout());
-        card.setMaximumSize(new Dimension(2000, 420));
-        card.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JPanel content = new JPanel();
-        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
-        content.setBackground(Color.WHITE);
-        content.setBorder(new EmptyBorder(15, 20, 15, 20));
-
-        JPanel cardHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
-        cardHeader.setBackground(Color.WHITE);
-        cardHeader.setMaximumSize(new Dimension(2000, 40));
-        cardHeader.setAlignmentX(Component.LEFT_ALIGNMENT);
-        JLabel iconLbl = new JLabel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                BrandIcons.SYSTEM_IMG.paint((Graphics2D) g, 0, 0, 24, UIStyle.TEXT_PRIMARY);
-            }
-
-            @Override
-            public Dimension getPreferredSize() {
-                return new Dimension(24, 24);
-            }
-        };
-        JLabel cardTitle = new JLabel("System Configuration");
-        cardTitle.setFont(new Font("SansSerif", Font.BOLD, 16));
-        cardHeader.add(iconLbl);
-        cardHeader.add(cardTitle);
-        content.add(cardHeader);
-        content.add(Box.createVerticalStrut(20));
-
-        content.add(createToggleRow("Automatic Backup", "Daily backup of system data", true));
-        content.add(createSeparator());
-        content.add(createToggleRow("Low Stock Alerts", "Notify when products are low stocks", true));
-        content.add(createSeparator());
-        content.add(createToggleRow("Notifications", "Send notification alerts and reports", true));
-        content.add(createSeparator());
-        content.add(createToggleRow("Auto Receipt Printing", "Automatically print receipt after sale", true));
-        content.add(createSeparator());
-        content.add(createToggleRow("Audit Logging", "Log all user actions", false));
-
-        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        btnPanel.setBackground(Color.WHITE);
-        btnPanel.setMaximumSize(new Dimension(2000, 50));
-        btnPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        JButton saveBtn = createStyledButton("Save System Settings", UIStyle.BRAND_BROWN);
-        btnPanel.add(saveBtn);
-        content.add(Box.createVerticalStrut(10));
-        content.add(btnPanel);
-
-        card.add(content, BorderLayout.CENTER);
+        addField(fields, preview);
+        card.add(scroll(fields), BorderLayout.CENTER);
         return card;
     }
 
-    private JPanel createToggleRow(String title, String subtitle, boolean initialState) {
-        JPanel row = new JPanel(new BorderLayout());
-        row.setBackground(Color.WHITE);
-        row.setMaximumSize(new Dimension(2000, 60));
-        row.setAlignmentX(Component.LEFT_ALIGNMENT);
-        row.setBorder(new EmptyBorder(10, 0, 10, 0));
-        JPanel textPanel = new JPanel();
-        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
-        textPanel.setBackground(Color.WHITE);
-        JLabel titleLbl = new JLabel(title);
-        titleLbl.setFont(new Font("SansSerif", Font.BOLD, 14));
-        titleLbl.setForeground(UIStyle.TEXT_PRIMARY);
-        JLabel subtitleLbl = new JLabel(subtitle);
-        subtitleLbl.setFont(new Font("SansSerif", Font.PLAIN, 11));
-        subtitleLbl.setForeground(UIStyle.TEXT_SECONDARY);
-        textPanel.add(titleLbl);
-        textPanel.add(subtitleLbl);
-        ToggleSwitch toggle = new ToggleSwitch(initialState);
-        row.add(textPanel, BorderLayout.WEST);
-        row.add(toggle, BorderLayout.EAST);
-        return row;
+    private JPanel branding() {
+        JPanel card = form("Store & receipt", "The details your customers see on every receipt.");
+        JPanel fields = column();
+        addField(fields, formField("Store name", store));
+        addField(fields, formField("Address", new JScrollPane(address)));
+        addField(fields, formField("Phone", phone));
+        addField(fields, formField("Receipt message", new JScrollPane(footer)));
+        addField(fields, formField("Receipt paper width (mm)", receiptWidth));
+        card.add(scroll(fields), BorderLayout.CENTER);
+        return card;
     }
 
-    private static class ToggleSwitch extends JLabel {
-        private boolean active;
-
-        public ToggleSwitch(boolean initialState) {
-            this.active = initialState;
-            setCursor(new Cursor(Cursor.HAND_CURSOR));
-            addMouseListener(new java.awt.event.MouseAdapter() {
-                @Override
-                public void mouseClicked(java.awt.event.MouseEvent e) {
-                    active = !active;
-                    repaint();
-                }
-            });
-        }
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            int size = 22; // Increased size
-            if (active)
-                BrandIcons.TOGGLE_ON.paint((Graphics2D) g, 0, (getHeight() - size) / 2, size, UIStyle.BRAND_BROWN);
-            else
-                BrandIcons.TOGGLE_OFF.paint((Graphics2D) g, 0, (getHeight() - size) / 2, size, null);
-        }
-
-        @Override
-        public Dimension getPreferredSize() {
-            return new Dimension(50, 24);
-        }
+    private JPanel pricing() {
+        JPanel card = form("Checkout preferences", "Make payment collection fit your counter.");
+        JPanel fields = column();
+        tax.setOpaque(false);
+        gcash.setOpaque(false);
+        addField(fields, tax);
+        addField(fields, formField("Tax rate (%)", rate));
+        addField(fields,
+                label("Tax is added to the subtotal of new checkouts.", UIStyle.SMALL, UIStyle.TEXT_SECONDARY));
+        addField(fields, gcash);
+        addField(fields,
+                label("Cashiers verify GCash payment and enter its reference.", UIStyle.SMALL, UIStyle.TEXT_SECONDARY));
+        card.add(scroll(fields), BorderLayout.CENTER);
+        return card;
     }
 
-    private JSeparator createSeparator() {
-        JSeparator sep = new JSeparator();
-        sep.setForeground(new Color(241, 245, 249));
-        sep.setMaximumSize(new Dimension(2000, 1));
-        return sep;
+    private void load(PosSettings.Values s) {
+        store.setText(s.storeName());
+        address.setText(s.address());
+        phone.setText(s.phone());
+        footer.setText(s.receiptFooter());
+        accent.setSelectedItem(s.accent());
+        compact.setSelected(s.compact());
+        list.setSelected(s.listView());
+        tax.setSelected(s.taxEnabled());
+        rate.setText(s.taxRate().stripTrailingZeros().toPlainString());
+        gcash.setSelected(s.gcashEnabled());
+        receiptWidth.setSelectedItem(s.receiptWidth());
+        updatePreview();
     }
 
-    private JButton createStyledButton(String text, Color bg) {
-        JButton btn = new JButton(text);
-        btn.setFont(new Font("SansSerif", Font.BOLD, 13));
-        btn.setForeground(Color.WHITE);
-        btn.setBackground(bg);
-        btn.setOpaque(false);
-        btn.setContentAreaFilled(false);
-        btn.setBorderPainted(false);
-        btn.setFocusPainted(false);
-        btn.setPreferredSize(new Dimension(220, 50));
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+    private void updatePreview() {
+        previewName.setText(accent.getSelectedItem() + " collection");
+        previewName.setForeground(UIStyle.accent((String) accent.getSelectedItem()));
+        repaint();
+    }
 
-        btn.addMouseListener(new java.awt.event.MouseAdapter() {
-            private Color originalBg = bg;
-            private Color hoverBg = originalBg.brighter();
-            private Color pressedBg = originalBg.darker();
-
-            @Override
-            public void mouseEntered(java.awt.event.MouseEvent e) {
-                btn.setBackground(hoverBg);
+    private void save() {
+        PosSettings.Values next;
+        try {
+            next = new PosSettings.Values(store.getText().trim(), address.getText().trim(), phone.getText().trim(),
+                    footer.getText().trim(), (String) accent.getSelectedItem(), compact.isSelected(), list.isSelected(),
+                    tax.isSelected(), new BigDecimal(rate.getText().trim()), gcash.isSelected(),
+                    (Integer) receiptWidth.getSelectedItem());
+        } catch (IllegalArgumentException ex) {
+            status.setForeground(UIStyle.DANGER);
+            status.setText("Check the store name and tax rate (0–100).");
+            return;
+        }
+        save.setEnabled(false);
+        reset.setEnabled(false);
+        status.setForeground(UIStyle.TEXT_SECONDARY);
+        status.setText("Saving changes…");
+        new SwingWorker<Void, Void>() {
+            protected Void doInBackground() throws Exception {
+                persistence.Repositories.settings().save(next);
+                return null;
             }
 
-            @Override
-            public void mouseExited(java.awt.event.MouseEvent e) {
-                btn.setBackground(originalBg);
-            }
-
-            @Override
-            public void mousePressed(java.awt.event.MouseEvent e) {
-                btn.setBackground(pressedBg);
-            }
-
-            @Override
-            public void mouseReleased(java.awt.event.MouseEvent e) {
-                if (btn.getBounds().contains(e.getPoint())) {
-                    btn.setBackground(hoverBg);
-                } else {
-                    btn.setBackground(originalBg);
+            protected void done() {
+                save.setEnabled(true);
+                reset.setEnabled(true);
+                try {
+                    get();
+                    status.setForeground(UIStyle.SUCCESS);
+                    status.setText("Changes saved.");
+                } catch (Exception ex) {
+                    status.setForeground(UIStyle.DANGER);
+                    status.setText("Could not save. Previous settings are kept.");
                 }
             }
-        });
-
-        btn.setUI(new javax.swing.plaf.basic.BasicButtonUI() {
-            @Override
-            public void paint(Graphics g, JComponent c) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(c.getBackground());
-                g2.fillRoundRect(0, 0, c.getWidth(), c.getHeight(), c.getHeight(), c.getHeight()); // Pill shape
-                super.paint(g2, c);
-                g2.dispose();
-            }
-        });
-        return btn;
+        }.execute();
     }
 }

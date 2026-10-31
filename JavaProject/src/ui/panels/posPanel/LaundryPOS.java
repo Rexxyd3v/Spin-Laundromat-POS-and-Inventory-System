@@ -1,1132 +1,685 @@
-package src.ui.panels.posPanel;
+package ui.panels.posPanel;
 
 import java.awt.*;
-import java.io.*;
-import java.util.ArrayList;
-import java.util.Properties;
+import java.awt.event.*;
+import java.beans.PropertyChangeListener;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.*;
+import java.util.List;
 import javax.swing.*;
-import src.util.components.Scrollbar;
-import src.util.components.ShadowPanel;
-import src.util.config.UIStyle;
+import javax.swing.border.EmptyBorder;
+import javax.swing.event.*;
+import model.*;
+import util.components.*;
+import util.config.*;
+import ui.panels.settingsPanel.SettingsPanel;
+import static util.components.ModernUI.*;
 
+/**
+ * Catalog and cart stay separate so view/theme changes never discard an order.
+ */
 public class LaundryPOS extends JPanel {
-    private final ArrayList<Item> cart = new ArrayList<>();
-    private JPanel cartPanel;
-    private JLabel subtotalLabel, taxLabel, totalLabel;
-    private static final int PADDING = 20;
-    private final ArrayList<String[]> servicesList = new ArrayList<>();
-    private JPanel servicesGrid; 
-
-    private final String[][] productsList = {
-        { "Surf Powder",           "Detergent Rose Fresh 75g sachet", "7.00"  },
-        { "Wings Detergent Powder","White 40g",                       "7.00"  },
-        { "Breeze Liquid Detergent","60ml sachet",                    "15.00" },
-        { "Downy Sunrise Fresh",   "60ml",                            "6.00"  }
+    private persistence.RepositoryProvider.Catalog catalog;
+    private String catalogError;
+    private final List<Item> cart = new ArrayList<>();
+    private final JTextField search = field("Search services and products");
+    private final JPanel categories = row(8), cartItems = column();
+    private final CatalogGrid grid = new CatalogGrid();
+    private final JLabel count = label("", UIStyle.SMALL, UIStyle.TEXT_SECONDARY);
+    private final JLabel cartCount = label("", UIStyle.SMALL, UIStyle.TEXT_SECONDARY);
+    private final JLabel subtotalLabel = label("", UIStyle.REGULAR, UIStyle.TEXT_PRIMARY),
+            taxLabel = label("", UIStyle.REGULAR, UIStyle.TEXT_PRIMARY),
+            totalLabel = label("", UIStyle.TITLE, UIStyle.TEXT_PRIMARY);
+    private final JLabel taxCaption = label("", UIStyle.REGULAR, UIStyle.TEXT_SECONDARY);
+    private final JButton checkout = button("Checkout", AppIcon.Name.ARROW, true);
+    private final JButton clear = iconButton("Clear order", AppIcon.Name.TRASH);
+    private final JButton view = iconButton("Switch catalog layout", AppIcon.Name.LIST);
+    private String category = "All";
+    private boolean listView = persistence.Repositories.settings().get().listView();
+    private final PropertyChangeListener catalogListener = e -> {
+        if (e.getPropertyName().equals("catalog"))
+            reloadCatalog();
     };
-    private JPanel productsGrid; 
-    private static final String SERVICES_FILE = "services.properties";
+    private final PropertyChangeListener settingsListener = e -> {
+        listView = persistence.Repositories.settings().get().listView();
+        refreshCatalog();
+        updateCart();
+        revalidate();
+        repaint();
+    };
+
+    private final JTextField customerName = field("Customer name");
+    private String orderNote = "";
+    private final JButton noteButton = button("Add note", AppIcon.Name.EDIT, false);
+    private final JPanel costBreakdown = column();
 
     public LaundryPOS() {
-        loadServices();
-
-        setLayout(new GridBagLayout());
+        UIStyle.installDefaults();
+        try {
+            catalog = persistence.Repositories.catalog();
+        } catch (IOException ex) {
+            catalogError = ex.getMessage();
+        }
+        setLayout(new BorderLayout(0, 24));
         setBackground(UIStyle.BACKGROUND);
+        setBorder(new EmptyBorder(28, 28, 28, 28));
+        add(buildHeader(), BorderLayout.NORTH);
+        JPanel catalogPanel = new JPanel(new BorderLayout(0, 18));
+        catalogPanel.setOpaque(false);
+        catalogPanel.add(buildTools(), BorderLayout.NORTH);
+        catalogPanel.add(scroll(grid), BorderLayout.CENTER);
+        JPanel footer = row(0);
+        footer.add(count);
+        catalogPanel.add(footer, BorderLayout.SOUTH);
+        JPanel orderPanel = buildCart();
+        JPanel body = new JPanel(null) {
+            private boolean drawerOpen;
+            private final JButton open = button("View order", AppIcon.Name.RECEIPT, true);
+            {
+                add(catalogPanel);
+                add(orderPanel);
+                add(open);
+                open.addActionListener(e -> {
+                    drawerOpen = true;
+                    remove(orderPanel);
+                    JDialog drawer = new JDialog(SwingUtilities.getWindowAncestor(LaundryPOS.this), "Current order",
+                            Dialog.ModalityType.APPLICATION_MODAL);
+                    drawer.setContentPane(orderPanel);
+                    drawer.setSize(410, 650);
+                    drawer.setLocationRelativeTo(LaundryPOS.this);
+                    drawer.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+                    drawer.addWindowListener(new WindowAdapter() {
+                        public void windowClosed(WindowEvent event) {
+                            drawer.setContentPane(new JPanel());
+                            add(orderPanel);
+                            drawerOpen = false;
+                            revalidate();
+                            repaint();
+                        }
+                    });
+                    drawer.setVisible(true);
+                });
+            }
 
-        GridBagConstraints gbc = new GridBagConstraints();
-
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.weightx = 1.0;
-        gbc.weighty = 1.0;
-        gbc.fill = GridBagConstraints.BOTH;
-
-        JScrollPane centerScroll = new JScrollPane(createCenter());
-        centerScroll.setBorder(null);
-        centerScroll.setBackground(UIStyle.BACKGROUND);
-        centerScroll.getViewport().setBackground(UIStyle.BACKGROUND);
-        centerScroll.getVerticalScrollBar().setUnitIncrement(16);
-        centerScroll.getVerticalScrollBar().setUI(new Scrollbar());
-        centerScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        add(centerScroll, gbc);
-        centerScroll.setOpaque(false);
-
-        gbc.gridx = 1;
-        gbc.weightx = 0;
-        gbc.fill = GridBagConstraints.VERTICAL;
-        add(createCart(), gbc);
-    }
-
-    private JPanel createCenter() {
-        JPanel panel = new JPanel();
-        panel.setOpaque(false);
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(BorderFactory.createEmptyBorder(PADDING, PADDING, PADDING, PADDING));
-        panel.add(createSearchSection());
-        panel.add(Box.createVerticalStrut(25));
-
-        JPanel serviceHeader = new JPanel(new BorderLayout());
-        serviceHeader.setOpaque(false);
-        serviceHeader.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
-        serviceHeader.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JLabel servicesTitle = new JLabel("Services");
-        servicesTitle.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        serviceHeader.add(servicesTitle, BorderLayout.WEST);
-
-        JButton addServiceBtn = new JButton("+ Add Service") {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(37, 99, 235));
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
-                g2.setColor(Color.WHITE);
-                g2.setFont(new Font("Segoe UI", Font.BOLD, 13));
-                FontMetrics fm = g2.getFontMetrics();
-                int x = (getWidth() - fm.stringWidth(getText())) / 2;
-                int y = ((getHeight() - fm.getHeight()) / 2) + fm.getAscent();
-                g2.drawString(getText(), x, y);
-                g2.dispose();
+            public void doLayout() {
+                int w = getWidth(), h = getHeight(), gap = 20;
+                boolean wide = w >= 790;
+                open.setVisible(!wide);
+                if (!drawerOpen)
+                    orderPanel.setVisible(wide);
+                if (wide) {
+                    int cw = Math.min(350, Math.max(310, w / 3));
+                    catalogPanel.setBounds(0, 0, w - cw - gap, h);
+                    if (!drawerOpen)
+                        orderPanel.setBounds(w - cw, 0, cw, h);
+                } else {
+                    catalogPanel.setBounds(0, 0, w, Math.max(0, h - 66));
+                    open.setText("View order · " + OrderPricing.money(totals().total()));
+                    open.setBounds(0, Math.max(0, h - 48), w, 48);
+                }
             }
         };
-        addServiceBtn.setPreferredSize(new Dimension(130, 34));
-        addServiceBtn.setContentAreaFilled(false);
-        addServiceBtn.setBorderPainted(false);
-        addServiceBtn.setFocusPainted(false);
-        addServiceBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        addServiceBtn.addActionListener(e -> showAddServiceDialog());
-        serviceHeader.add(addServiceBtn, BorderLayout.EAST);
+        body.setOpaque(false);
+        add(body, BorderLayout.CENTER);
+        search.putClientProperty("placeholder", "Search services or products…");
+        search.setToolTipText("Search by item name, description or category. Ctrl+F focuses search.");
+        search.getDocument().addDocumentListener(new DocumentListener() {
+            public void insertUpdate(DocumentEvent e) {
+                refreshCatalog();
+            }
 
-        ShadowPanel servicesCard = new ShadowPanel();
-        servicesCard.setOpaque(false);
-        JPanel servicesInner = new JPanel();
-        servicesInner.setOpaque(false);
-        servicesInner.setLayout(new BoxLayout(servicesInner, BoxLayout.Y_AXIS));
-        servicesInner.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        servicesInner.add(serviceHeader);
-        servicesInner.add(Box.createVerticalStrut(15));
+            public void removeUpdate(DocumentEvent e) {
+                refreshCatalog();
+            }
 
-        servicesGrid = new JPanel(new GridLayout(0, 2, 15, 15));
-        servicesGrid.setOpaque(false);
-        servicesGrid.setAlignmentX(Component.LEFT_ALIGNMENT);
-        for (String[] s : servicesList) {
-            servicesGrid.add(createServiceCard(s[0], s[1], s[2]));
+            public void changedUpdate(DocumentEvent e) {
+                refreshCatalog();
+            }
+        });
+        getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
+                .put(KeyStroke.getKeyStroke(KeyEvent.VK_F, InputEvent.CTRL_DOWN_MASK), "search");
+        getActionMap().put("search", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                search.requestFocusInWindow();
+            }
+        });
+        checkout.addActionListener(e -> openCheckout());
+        clear.addActionListener(e -> {
+            if (!cart.isEmpty() && JOptionPane.showConfirmDialog(this, "Remove all items from this order?",
+                    "Clear order", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION)
+                clearCart();
+        });
+        view.addActionListener(e -> {
+            listView = !listView;
+            refreshCatalog();
+        });
+        rebuildCategories();
+        refreshCatalog();
+        updateCart();
+    }
+
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        persistence.Repositories.settings().addListener(settingsListener);
+        AppEvents.add(catalogListener);
+    }
+
+    @Override
+    public void removeNotify() {
+        persistence.Repositories.settings().removeListener(settingsListener);
+        AppEvents.remove(catalogListener);
+        super.removeNotify();
+    }
+
+    public void reloadCatalog() {
+        try {
+            catalog = persistence.Repositories.catalog();
+            catalogError = null;
+            rebuildCategories();
+            refreshCatalog();
+        } catch (IOException ex) {
+            catalogError = ex.getMessage();
         }
-        servicesInner.add(servicesGrid);
-        servicesCard.add(servicesInner);
-        panel.add(servicesCard);
+    }
 
-        panel.add(Box.createVerticalStrut(25));
+    private JPanel buildHeader() {
+        JPanel p = new JPanel(new BorderLayout(16, 0));
+        p.setOpaque(false);
+        JPanel titles = column();
+        titles.add(label("YOUR DAILY WORKSPACE", UIStyle.SMALL, UIStyle.PRIMARY));
+        titles.add(Box.createVerticalStrut(5));
+        titles.add(label("Point of sale", UIStyle.TITLE, UIStyle.TEXT_PRIMARY));
+        titles.add(Box.createVerticalStrut(5));
+        titles.add(label("Fresh laundry. A smoother checkout.", UIStyle.REGULAR, UIStyle.TEXT_SECONDARY));
+        p.add(titles, BorderLayout.CENTER);
+        JPanel actions = row(8);
+        JButton manage = button("Catalog", AppIcon.Name.EDIT, false);
+        manage.setToolTipText("Add, edit or remove services and products");
+        manage.setEnabled(catalog != null);
+        manage.addActionListener(e -> {
+            Window owner = SwingUtilities.getWindowAncestor(this);
+            CatalogManager manager = new CatalogManager(owner, catalog, this::reloadCatalog);
+            manager.setVisible(true);
+        });
+        JButton customize = iconButton("Customize your POS", AppIcon.Name.SETTINGS);
+        customize.addActionListener(e -> {
+            JDialog d = new JDialog(SwingUtilities.getWindowAncestor(this), "Customize your POS",
+                    Dialog.ModalityType.APPLICATION_MODAL);
+            d.setContentPane(new SettingsPanel());
+            d.setSize(780, 650);
+            d.setLocationRelativeTo(this);
+            d.setVisible(true);
+        });
+        actions.add(manage);
+        actions.add(customize);
+        p.add(actions, BorderLayout.EAST);
+        return p;
+    }
 
-        // Products section
-        ShadowPanel productsCard = new ShadowPanel();
-        productsCard.setOpaque(false);
-        JPanel productsInner = new JPanel();
-        productsInner.setOpaque(false);
-        productsInner.setLayout(new BoxLayout(productsInner, BoxLayout.Y_AXIS));
-        productsInner.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+    private JPanel buildTools() {
+        JPanel p = new JPanel(new BorderLayout(0, 14));
+        p.setOpaque(false);
+        JPanel searchBar = new Surface();
+        searchBar.setBorder(new EmptyBorder(1, 12, 1, 4));
+        JLabel icon = new JLabel(new AppIcon(AppIcon.Name.SEARCH, 20, UIStyle.TEXT_SECONDARY));
+        searchBar.add(icon, BorderLayout.WEST);
+        search.setBorder(new EmptyBorder(12, 10, 12, 8));
+        searchBar.add(search, BorderLayout.CENTER);
+        searchBar.add(view, BorderLayout.EAST);
+        p.add(searchBar, BorderLayout.NORTH);
+        JScrollPane chips = scroll(categories);
+        chips.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
+        chips.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        chips.setPreferredSize(new Dimension(10, 52));
+        p.add(chips, BorderLayout.SOUTH);
+        return p;
+    }
 
-        JLabel productsTitle = new JLabel("Products");
-        productsTitle.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        productsTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
-        productsInner.add(productsTitle);
-        productsInner.add(Box.createVerticalStrut(15));
-
-        productsGrid = new JPanel(new GridLayout(0, 2, 15, 15));
-        productsGrid.setOpaque(false);
-        productsGrid.setAlignmentX(Component.LEFT_ALIGNMENT);
-        for (String[] p : productsList) {
-            productsGrid.add(createCard(p[0], p[1], p[2]));
+    private void rebuildCategories() {
+        Set<String> names = new LinkedHashSet<>();
+        names.add("All");
+        if (catalog != null)
+            for (CatalogItem item : catalog.items())
+                names.add(item.category());
+        if (!names.contains(category))
+            category = "All";
+        categories.removeAll();
+        for (String name : names) {
+            JButton chip = button(name, null, name.equals(category));
+            chip.setBorder(new EmptyBorder(8, 14, 8, 14));
+            chip.addActionListener(e -> {
+                category = name;
+                rebuildCategories();
+                refreshCatalog();
+            });
+            categories.add(chip);
         }
-        productsInner.add(productsGrid);
-        productsCard.add(productsInner);
-        panel.add(productsCard);
+        categories.revalidate();
+        categories.repaint();
+    }
 
-        panel.add(Box.createVerticalGlue());
+    private void refreshCatalog() {
+        grid.removeAll();
+        view.setIcon(new AppIcon(listView ? AppIcon.Name.GRID : AppIcon.Name.LIST, 18));
+        String term = search.getText().trim().toLowerCase(Locale.ROOT);
+        int found = 0;
+        if (catalog != null)
+            for (CatalogItem item : catalog.items()) {
+                if (!category.equals("All") && !item.category().equals(category))
+                    continue;
+                if (!(item.name() + " " + item.description() + " " + item.category()).toLowerCase(Locale.ROOT)
+                        .contains(term))
+                    continue;
+                grid.add(itemCard(item));
+                found++;
+            }
+        if (found == 0) {
+            JPanel empty = column();
+            empty.setBorder(new EmptyBorder(30, 8, 20, 8));
+            empty.add(new JLabel(new AppIcon(catalogError == null ? AppIcon.Name.SEARCH : AppIcon.Name.WARNING, 30,
+                    UIStyle.TEXT_SECONDARY)));
+            empty.add(Box.createVerticalStrut(12));
+            empty.add(label(catalogError == null ? "No items found" : "Catalog unavailable", UIStyle.SUBTITLE,
+                    UIStyle.TEXT_PRIMARY));
+            JLabel hint = label(
+                    catalogError == null ? "Try another search or add an item in Catalog."
+                            : "Your saved catalog was not changed. Check the catalog file before continuing.",
+                    UIStyle.SMALL, UIStyle.TEXT_SECONDARY);
+            hint.setToolTipText(catalogError);
+            empty.add(hint);
+            grid.add(empty);
+        }
+        count.setText(found + " item" + (found == 1 ? "" : "s") + " · Prices per displayed unit");
+        grid.revalidate();
+        grid.repaint();
+    }
+
+    private AppIcon.Name itemIcon(CatalogItem item) {
+        String name = item.name().toLowerCase(Locale.ROOT);
+        if (item.product())
+            return AppIcon.Name.BOX;
+        if (name.contains("fold"))
+            return AppIcon.Name.FOLD;
+        if (name.contains("dry") && !name.contains("wash"))
+            return AppIcon.Name.DRY;
+        return AppIcon.Name.WASH;
+    }
+
+    private JPanel itemCard(CatalogItem item) {
+        Surface card = new Surface();
+        card.setBorder(new EmptyBorder(12, 12, 12, 12));
+        card.setToolTipText(item.description());
+        ItemPhoto photo = new ItemPhoto(item);
+        JPanel text = column();
+        text.add(label(item.category().toUpperCase(Locale.ROOT), new Font("Segoe UI", Font.BOLD, 10),
+                UIStyle.TEXT_SECONDARY));
+        text.add(Box.createVerticalStrut(6));
+        JLabel name = label(item.name(), new Font("Segoe UI", Font.BOLD, 15), UIStyle.TEXT_PRIMARY);
+        name.setToolTipText(item.name());
+        text.add(name);
+        if (!persistence.Repositories.settings().get().compact() || listView) {
+            text.add(Box.createVerticalStrut(5));
+            JLabel detail = label(item.description(), new Font("Segoe UI", Font.PLAIN, 11), UIStyle.TEXT_SECONDARY);
+            detail.setToolTipText(item.description());
+            text.add(detail);
+        }
+        JButton add = button("", AppIcon.Name.PLUS, true);
+        add.setPreferredSize(new Dimension(36, 36));
+        add.setToolTipText("Add " + item.name());
+        add.getAccessibleContext().setAccessibleName("Add " + item.name());
+        add.addActionListener(e -> addToCart(item));
+        JPanel price = row(4);
+        price.add(label(OrderPricing.money(item.price()), new Font("Segoe UI", Font.BOLD, 16), UIStyle.TEXT_PRIMARY));
+        price.add(label("/ " + item.unit(), UIStyle.SMALL, UIStyle.TEXT_SECONDARY));
+        if (listView) {
+            card.setLayout(new BorderLayout(16, 0));
+            photo.setPreferredSize(new Dimension(76, 76));
+            card.add(photo, BorderLayout.WEST);
+            card.add(text, BorderLayout.CENTER);
+            JPanel right = row(12);
+            right.add(price);
+            right.add(add);
+            card.add(right, BorderLayout.EAST);
+        } else {
+            photo.setPreferredSize(new Dimension(150, 126));
+            card.add(photo, BorderLayout.NORTH);
+            text.setBorder(new EmptyBorder(12, 2, 12, 2));
+            card.add(text, BorderLayout.CENTER);
+            JPanel bottom = new JPanel(new BorderLayout());
+            bottom.setOpaque(false);
+            bottom.add(price, BorderLayout.WEST);
+            bottom.add(add, BorderLayout.EAST);
+            card.add(bottom, BorderLayout.SOUTH);
+        }
+        return card;
+    }
+
+    private JPanel buildCart() {
+        Surface panel = new Surface();
+        panel.setName("order-summary");
+        panel.setBorder(new EmptyBorder(20, 18, 18, 18));
+        JPanel header = new JPanel(new BorderLayout(12, 0));
+        header.setOpaque(false);
+        JPanel titles = column();
+        titles.add(label("Order summary", new Font("Segoe UI", Font.BOLD, 20), UIStyle.TEXT_PRIMARY));
+        titles.add(Box.createVerticalStrut(6));
+        titles.add(cartCount);
+        header.add(titles, BorderLayout.CENTER);
+        JPanel clearHolder = row(0);
+        clearHolder.add(clear);
+        header.add(clearHolder, BorderLayout.EAST);
+        header.setBorder(new EmptyBorder(0, 0, 18, 0));
+        panel.add(header, BorderLayout.NORTH);
+        JPanel contents = column();
+        JPanel person = new JPanel(new BorderLayout(8, 0));
+        person.setOpaque(false);
+        customerName.putClientProperty("placeholder", "Walk-in customer");
+        customerName.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(UIStyle.INPUT_BORDER),
+                new EmptyBorder(10, 10, 10, 10)));
+        person.add(customerName, BorderLayout.CENTER);
+        JButton profile = iconButton("Customer name", AppIcon.Name.USERS);
+        profile.addActionListener(e -> customerName.requestFocusInWindow());
+        person.add(profile, BorderLayout.WEST);
+        person.setAlignmentX(LEFT_ALIGNMENT);
+        person.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
+        contents.add(person);
+        contents.add(Box.createVerticalStrut(18));
+        cartItems.setAlignmentX(LEFT_ALIGNMENT);
+        contents.add(cartItems);
+        contents.add(Box.createVerticalStrut(12));
+        noteButton.setAlignmentX(LEFT_ALIGNMENT);
+        noteButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
+        noteButton.addActionListener(e -> {
+            JTextArea note = new JTextArea(orderNote, 5, 28);
+            note.setLineWrap(true);
+            note.setWrapStyleWord(true);
+            note.setFont(UIStyle.REGULAR);
+            if (JOptionPane.showConfirmDialog(this, new JScrollPane(note), "Order instructions",
+                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) == JOptionPane.OK_OPTION) {
+                orderNote = note.getText().trim();
+                noteButton.setText(orderNote.isBlank() ? "Add note" : "Edit order note");
+                noteButton.setToolTipText(orderNote);
+            }
+        });
+        contents.add(noteButton);
+        contents.add(Box.createVerticalStrut(20));
+        costBreakdown.setBorder(new EmptyBorder(16, 0, 12, 0));
+        costBreakdown.add(totalRow(label("Subtotal", UIStyle.SMALL, UIStyle.TEXT_SECONDARY), subtotalLabel));
+        costBreakdown.add(Box.createVerticalStrut(10));
+        costBreakdown.add(totalRow(taxCaption, taxLabel));
+        contents.add(costBreakdown);
+        JScrollPane orderScroll = scroll(contents);
+        orderScroll.getVerticalScrollBar().setUnitIncrement(32);
+        panel.add(orderScroll, BorderLayout.CENTER);
+        JPanel bottom = column();
+        bottom.setBorder(new EmptyBorder(16, 0, 0, 0));
+        JPanel due = new JPanel(new BorderLayout());
+        due.setOpaque(false);
+        JPanel caption = column();
+        caption.add(label("AMOUNT DUE", new Font("Segoe UI", Font.BOLD, 10), UIStyle.TEXT_SECONDARY));
+        caption.add(Box.createVerticalStrut(4));
+        caption.add(label("Tax included in total", new Font("Segoe UI", Font.PLAIN, 10), UIStyle.TEXT_SECONDARY));
+        due.add(caption, BorderLayout.CENTER);
+        totalLabel.setFont(new Font("Segoe UI", Font.BOLD, 27));
+        due.add(totalLabel, BorderLayout.EAST);
+        due.setAlignmentX(LEFT_ALIGNMENT);
+        due.setMaximumSize(new Dimension(Integer.MAX_VALUE, 52));
+        bottom.add(new JSeparator());
+        bottom.add(Box.createVerticalStrut(16));
+        bottom.add(due);
+        bottom.add(Box.createVerticalStrut(16));
+        checkout.setText("Review & pay");
+        checkout.setMaximumSize(new Dimension(Integer.MAX_VALUE, 48));
+        checkout.setAlignmentX(LEFT_ALIGNMENT);
+        bottom.add(checkout);
+        panel.add(bottom, BorderLayout.SOUTH);
         return panel;
     }
 
-    private JPanel createSearchSection() {
-        ShadowPanel searchCard = new ShadowPanel();
-        searchCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 130));
-
-        JPanel inner = new JPanel();
-        inner.setOpaque(false);
-        inner.setLayout(new BoxLayout(inner, BoxLayout.Y_AXIS));
-        inner.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
-
-        JLabel searchLabel = new JLabel("Search Services & Products");
-        searchLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        searchLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        inner.add(searchLabel);
-        inner.add(Box.createVerticalStrut(12));
-
-        JPanel searchRow = new JPanel(new BorderLayout(10, 0));
-        searchRow.setOpaque(false);
-        searchRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 45));
-        searchRow.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JPanel searchPill = new JPanel(new BorderLayout(12, 0)) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(Color.WHITE);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
-                g2.setColor(new Color(226, 232, 240));
-                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
-                g2.dispose();
-            }
-        };
-        searchPill.setOpaque(false);
-        searchPill.setPreferredSize(new Dimension(0, 45));
-        searchPill.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 20));
-
-        JLabel searchIcon = new JLabel();
-        try {
-            java.net.URL imgUrl = getClass().getResource("/src/resources/images/search.png");
-            if (imgUrl != null) {
-                ImageIcon original = new ImageIcon(imgUrl);
-                Image scaled = original.getImage().getScaledInstance(18, 18, Image.SCALE_SMOOTH);
-                searchIcon.setIcon(new ImageIcon(scaled));
-            } else {
-                searchIcon.setText("\uD83D\uDD0D");
-                searchIcon.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-                searchIcon.setForeground(new Color(148, 163, 184));
-            }
-        } catch (Exception e) {
-            searchIcon.setText("\uD83D\uDD0D");
-        }
-
-        JTextField searchField = new JTextField();
-        searchField.setFont(new Font("Segoe UI", Font.PLAIN, 15));
-        searchField.setBorder(null);
-        searchField.setOpaque(false);
-        searchField.setForeground(new Color(30, 41, 59));
-
-        searchField.setText("Search services & products...");
-        searchField.setForeground(new Color(148, 163, 184));
-        searchField.addFocusListener(new java.awt.event.FocusAdapter() {
-            @Override public void focusGained(java.awt.event.FocusEvent e) {
-                if (searchField.getText().equals("Search services & products...")) {
-                    searchField.setText("");
-                    searchField.setForeground(new Color(30, 41, 59));
-                }
-            }
-            @Override public void focusLost(java.awt.event.FocusEvent e) {
-                if (searchField.getText().isBlank()) {
-                    searchField.setText("Search services & products...");
-                    searchField.setForeground(new Color(148, 163, 184));
-                }
-            }
-        });
-
-        searchPill.add(searchIcon, BorderLayout.WEST);
-        searchPill.add(searchField, BorderLayout.CENTER);
-
-        JButton searchBtn = new JButton("Search") {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(getModel().isRollover() ? new Color(29, 78, 216) : new Color(37, 99, 235));
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
-                g2.setColor(Color.WHITE);
-                g2.setFont(new Font("Segoe UI", Font.BOLD, 14));
-                FontMetrics fm = g2.getFontMetrics();
-                int x = (getWidth() - fm.stringWidth(getText())) / 2;
-                int y = ((getHeight() - fm.getHeight()) / 2) + fm.getAscent();
-                g2.drawString(getText(), x, y);
-                g2.dispose();
-            }
-        };
-        searchBtn.setPreferredSize(new Dimension(90, 45));
-        searchBtn.setMinimumSize(new Dimension(90, 45));
-        searchBtn.setMaximumSize(new Dimension(90, 45));
-        searchBtn.setContentAreaFilled(false);
-        searchBtn.setBorderPainted(false);
-        searchBtn.setFocusPainted(false);
-        searchBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        Runnable doSearch = () -> {
-            String query = searchField.getText().trim().toLowerCase();
-            if (query.equals("search services & products...")) query = "";
-            servicesGrid.removeAll();
-            boolean sFound = false;
-            for (String[] s : servicesList) {
-                if (query.isEmpty() || s[0].toLowerCase().contains(query) || s[1].toLowerCase().contains(query)) {
-                    servicesGrid.add(createServiceCard(s[0], s[1], s[2]));
-                    sFound = true;
-                }
-            }
-            if (!sFound) {
-                JLabel noResult = new JLabel("No services match your search.");
-                noResult.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-                noResult.setForeground(new Color(148, 163, 184));
-                servicesGrid.add(noResult);
-            }
-            servicesGrid.revalidate();
-            servicesGrid.repaint();
-
-            productsGrid.removeAll();
-            boolean pFound = false;
-            for (String[] p : productsList) {
-                if (query.isEmpty() || p[0].toLowerCase().contains(query) || p[1].toLowerCase().contains(query)) {
-                    productsGrid.add(createCard(p[0], p[1], p[2]));
-                    pFound = true;
-                }
-            }
-            if (!pFound) {
-                JLabel noResult = new JLabel("No products match your search.");
-                noResult.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-                noResult.setForeground(new Color(148, 163, 184));
-                productsGrid.add(noResult);
-            }
-            productsGrid.revalidate();
-            productsGrid.repaint();
-        };
-
-        searchBtn.addActionListener(e -> doSearch.run());
-        searchField.addActionListener(e -> doSearch.run()); // also trigger on Enter
-
-        searchRow.add(searchPill, BorderLayout.CENTER);
-        searchRow.add(searchBtn, BorderLayout.EAST);
-
-        inner.add(searchRow);
-        searchCard.add(inner);
-        return searchCard;
+    private JPanel totalRow(JLabel caption, JLabel amount) {
+        JPanel p = new JPanel(new BorderLayout());
+        p.setOpaque(false);
+        p.setAlignmentX(LEFT_ALIGNMENT);
+        p.add(caption, BorderLayout.WEST);
+        p.add(amount, BorderLayout.EAST);
+        p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
+        return p;
     }
 
-    private JPanel createCard(String name, String desc, String price) {
-        JPanel card = new JPanel(new BorderLayout(15, 10)) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(Color.WHITE);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 15, 15);
-                g2.setColor(new Color(226, 232, 240));
-                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 15, 15);
-                g2.dispose();
-            }
-        };
-        card.setOpaque(false);
-        card.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
-
-        JPanel info = new JPanel();
-        info.setLayout(new BoxLayout(info, BoxLayout.Y_AXIS));
-        info.setOpaque(false);
-
-        JLabel nameLabel = new JLabel(name);
-        nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        nameLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        info.add(nameLabel);
-
-        info.add(Box.createVerticalStrut(5));
-
-        JLabel descLabel = new JLabel(desc);
-        descLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        descLabel.setForeground(new Color(100, 116, 139));
-        descLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        info.add(descLabel);
-
-        info.add(Box.createVerticalStrut(10));
-
-        JLabel priceLabel = new JLabel("\u20B1" + price);
-        priceLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
-        priceLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        info.add(priceLabel);
-
-        card.add(info, BorderLayout.CENTER);
-
-        JPanel btnWrapper = new JPanel(new GridBagLayout());
-        btnWrapper.setOpaque(false);
-
-        JButton btn = new JButton("+") {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(147, 197, 253)); // Light blue bubble
-                g2.fillOval(0, 0, getWidth(), getHeight());
-
-                g2.setColor(Color.WHITE);
-                g2.setFont(new Font("Segoe UI", Font.BOLD, 20));
-                FontMetrics fm = g2.getFontMetrics();
-                int x = (getWidth() - fm.stringWidth(getText())) / 2;
-                int y = ((getHeight() - fm.getHeight()) / 2) + fm.getAscent();
-                g2.drawString(getText(), x, y);
-                g2.dispose();
-            }
-        };
-        btn.setPreferredSize(new Dimension(32, 32));
-        btn.setMinimumSize(new Dimension(32, 32));
-        btn.setMaximumSize(new Dimension(32, 32));
-        btn.setContentAreaFilled(false);
-        btn.setBorderPainted(false);
-        btn.setFocusPainted(false);
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btn.addActionListener(e -> addToCart(name, desc, Double.parseDouble(price)));
-
-        btnWrapper.add(btn);
-        card.add(btnWrapper, BorderLayout.EAST);
-
-        return card;
-    }
-
-    private void showAddServiceDialog() {
-        JDialog dialog = new JDialog((java.awt.Frame) SwingUtilities.getWindowAncestor(this), "", true);
-        dialog.setUndecorated(true);
-        dialog.setSize(460, 400);
-        dialog.setLocationRelativeTo(this);
-        dialog.setResizable(false);
-        dialog.getRootPane().setBorder(BorderFactory.createEmptyBorder());
-
-        JPanel root = new JPanel(new BorderLayout()) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(Color.WHITE);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
-                g2.dispose();
-            }
-        };
-        root.setOpaque(false);
-        root.setBorder(BorderFactory.createEmptyBorder(32, 32, 28, 32));
-
-        JPanel headerRow = new JPanel(new BorderLayout(0, 0));
-        headerRow.setOpaque(false);
-
-        JPanel titleBlock = new JPanel();
-        titleBlock.setLayout(new BoxLayout(titleBlock, BoxLayout.Y_AXIS));
-        titleBlock.setOpaque(false);
-
-        JLabel titleLbl = new JLabel("Add New Service");
-        titleLbl.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        titleLbl.setForeground(new Color(15, 23, 42));
-        titleBlock.add(titleLbl);
-
-        JLabel subtitleLbl = new JLabel("Fill in the service name and price per kilogram.");
-        subtitleLbl.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        subtitleLbl.setForeground(new Color(100, 116, 139));
-        titleBlock.add(Box.createVerticalStrut(4));
-        titleBlock.add(subtitleLbl);
-
-        JButton closeBtn = new JButton("×") {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                if (getModel().isRollover()) {
-                    g2.setColor(new Color(241, 245, 249));
-                    g2.fillOval(0, 0, getWidth(), getHeight());
-                }
-                g2.setColor(new Color(100, 116, 139));
-                g2.setFont(new Font("Segoe UI", Font.PLAIN, 20));
-                FontMetrics fm = g2.getFontMetrics();
-                g2.drawString("×", (getWidth() - fm.stringWidth("×")) / 2,
-                        (getHeight() + fm.getAscent() - fm.getDescent()) / 2);
-                g2.dispose();
-            }
-        };
-        closeBtn.setPreferredSize(new Dimension(32, 32));
-        closeBtn.setContentAreaFilled(false);
-        closeBtn.setBorderPainted(false);
-        closeBtn.setFocusPainted(false);
-        closeBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        closeBtn.addActionListener(e -> dialog.dispose());
-
-        headerRow.add(titleBlock, BorderLayout.CENTER);
-        headerRow.add(closeBtn, BorderLayout.EAST);
-
-        // ── Form panel ────────────────────────────────────────────────────────
-        JPanel form = new JPanel(new GridBagLayout());
-        form.setOpaque(false);
-        form.setBorder(BorderFactory.createEmptyBorder(24, 0, 0, 0));
-
-        GridBagConstraints gc = new GridBagConstraints();
-        gc.fill = GridBagConstraints.HORIZONTAL;
-        gc.weightx = 1.0;
-        gc.gridx = 0;
-
-        JTextField nameField = makeStyledField("e.g. Delicate Wash");
-        JTextField priceField = makeStyledField("e.g. 25.00");
-
-        JLabel nameLbl = makeFieldLabel("Service Name *");
-        gc.gridy = 0; gc.insets = new Insets(0, 0, 6, 0);
-        form.add(nameLbl, gc);
-
-        gc.gridy = 1; gc.insets = new Insets(0, 0, 18, 0);
-        form.add(nameField, gc);
-
-        JLabel priceLbl = makeFieldLabel("Price per kg (₱) *");
-        gc.gridy = 2; gc.insets = new Insets(0, 0, 6, 0);
-        form.add(priceLbl, gc);
-        gc.gridy = 3; gc.insets = new Insets(0, 0, 6, 0);
-        form.add(priceField, gc);
-
-        JLabel errorLbl = new JLabel(" ");
-        errorLbl.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        errorLbl.setForeground(new Color(220, 38, 38));
-        gc.gridy = 4; gc.insets = new Insets(0, 0, 18, 0);
-        form.add(errorLbl, gc);
-    
-        JButton addBtn = new JButton("Create Service") {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(getModel().isRollover() ? new Color(29, 78, 216) : new Color(58, 103, 229));
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
-                g2.setColor(Color.WHITE);
-                g2.setFont(new Font("Segoe UI", Font.BOLD, 15));
-                FontMetrics fm = g2.getFontMetrics();
-                g2.drawString(getText(), (getWidth() - fm.stringWidth(getText())) / 2,
-                        ((getHeight() - fm.getHeight()) / 2) + fm.getAscent());
-                g2.dispose();
-            }
-        };
-        addBtn.setPreferredSize(new Dimension(0, 50));
-        addBtn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
-        addBtn.setContentAreaFilled(false);
-        addBtn.setBorderPainted(false);
-        addBtn.setFocusPainted(false);
-        addBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        addBtn.addActionListener(e -> {
-            String serviceName = nameField.getText().trim();
-            String priceText = priceField.getText().trim();
-
-            if (serviceName.isEmpty()) {
-                errorLbl.setText("⚠  Service name cannot be empty.");
-                return;
-            }
-            if (priceText.isEmpty()) {
-                errorLbl.setText("⚠  Price cannot be empty.");
-                return;
-            }
-            double parsedPrice;
-            try {
-                parsedPrice = Double.parseDouble(priceText);
-                if (parsedPrice < 0) {
-                    errorLbl.setText("⚠  Price must be a positive number.");
+    public void addToCart(CatalogItem product) {
+        for (Item item : cart)
+            if (item.id.equals(product.id())) {
+                if (item.quantity.compareTo(new BigDecimal("99998")) > 0)
                     return;
-                }
-            } catch (NumberFormatException ex) {
-                errorLbl.setText("⚠  Invalid price. Use numbers only (e.g. 25.00).");
+                item.quantity = item.quantity.add(BigDecimal.ONE);
+                updateCart();
                 return;
             }
-
-            String priceFormatted = String.format("%.2f", parsedPrice);
-            servicesList.add(new String[]{ serviceName, "Per kg", priceFormatted });
-            saveServices();
-            refreshServicesGrid();
-            dialog.dispose();
-        });
-
-        gc.gridy = 5; gc.insets = new Insets(0, 0, 0, 0);
-        form.add(addBtn, gc);
-
-        root.add(headerRow, BorderLayout.NORTH);
-        root.add(form, BorderLayout.CENTER);
-
-        JPanel shadow = new JPanel(new BorderLayout()) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                for (int i = 6; i >= 1; i--) {
-                    g2.setColor(new Color(0, 0, 0, 8));
-                    g2.fillRoundRect(i, i, getWidth() - i * 2, getHeight() - i * 2, 22, 22);
-                }
-                g2.setColor(Color.WHITE);
-                g2.fillRoundRect(6, 6, getWidth() - 12, getHeight() - 12, 20, 20);
-                g2.dispose();
-            }
-        };
-        shadow.setOpaque(false);
-        shadow.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
-        shadow.add(root);
-
-        dialog.setBackground(new Color(0, 0, 0, 0));
-        dialog.add(shadow);
-        dialog.setVisible(true);
-    }
-
-    private void showDeleteConfirmDialog(String name, String price) {
-        JDialog dialog = new JDialog((java.awt.Frame) SwingUtilities.getWindowAncestor(this), "", true);
-        dialog.setUndecorated(true);
-        dialog.setSize(360, 190);
-        dialog.setLocationRelativeTo(this);
-        dialog.setResizable(false);
-
-        JPanel root = new JPanel(new BorderLayout(0, 0)) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                for (int i = 5; i >= 1; i--) {
-                    g2.setColor(new Color(0, 0, 0, 7));
-                    g2.fillRoundRect(i, i, getWidth() - i * 2, getHeight() - i * 2, 22, 22);
-                }
-                g2.setColor(new Color(219, 234, 254)); // light blue
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
-                g2.dispose();
-            }
-        };
-        root.setOpaque(false);
-        root.setBorder(BorderFactory.createEmptyBorder(32, 32, 28, 32));
-
-        JLabel question = new JLabel("Delete this Service?");
-        question.setFont(new Font("Segoe UI", Font.BOLD, 17));
-        question.setForeground(new Color(15, 23, 42));
-        question.setHorizontalAlignment(SwingConstants.CENTER);
-
-        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 16, 0));
-        btnRow.setOpaque(false);
-
-        JButton yesBtn = new JButton("Yes") {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(getModel().isRollover() ? new Color(21, 128, 61) : new Color(34, 197, 94));
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 30, 30);
-                g2.setColor(Color.WHITE);
-                g2.setFont(new Font("Segoe UI", Font.BOLD, 15));
-                FontMetrics fm = g2.getFontMetrics();
-                g2.drawString(getText(), (getWidth() - fm.stringWidth(getText())) / 2,
-                        ((getHeight() - fm.getHeight()) / 2) + fm.getAscent());
-                g2.dispose();
-            }
-        };
-        yesBtn.setPreferredSize(new Dimension(110, 44));
-        yesBtn.setContentAreaFilled(false);
-        yesBtn.setBorderPainted(false);
-        yesBtn.setFocusPainted(false);
-        yesBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        yesBtn.addActionListener(e -> {
-            servicesList.removeIf(s -> s[0].equals(name) && s[2].equals(price));
-            saveServices();
-            refreshServicesGrid();
-            dialog.dispose();
-        });
-
-        JButton noBtn = new JButton("No") {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(getModel().isRollover() ? new Color(185, 28, 28) : new Color(239, 68, 68));
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 30, 30);
-                g2.setColor(Color.WHITE);
-                g2.setFont(new Font("Segoe UI", Font.BOLD, 15));
-                FontMetrics fm = g2.getFontMetrics();
-                g2.drawString(getText(), (getWidth() - fm.stringWidth(getText())) / 2,
-                        ((getHeight() - fm.getHeight()) / 2) + fm.getAscent());
-                g2.dispose();
-            }
-        };
-        noBtn.setPreferredSize(new Dimension(110, 44));
-        noBtn.setContentAreaFilled(false);
-        noBtn.setBorderPainted(false);
-        noBtn.setFocusPainted(false);
-        noBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        noBtn.addActionListener(e -> dialog.dispose());
-
-        btnRow.add(yesBtn);
-        btnRow.add(noBtn);
-
-        root.add(question, BorderLayout.CENTER);
-        root.add(btnRow, BorderLayout.SOUTH);
-
-        dialog.setBackground(new Color(0, 0, 0, 0));
-        dialog.add(root);
-        dialog.setVisible(true);
-    }
-
-    private JLabel makeFieldLabel(String text) {
-        JLabel lbl = new JLabel(text);
-        lbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        lbl.setForeground(new Color(30, 41, 59));
-        return lbl;
-    }
-
-    private JTextField makeStyledField(String placeholder) {
-        JTextField field = new JTextField() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(241, 245, 249));
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
-                super.paintComponent(g2);
-                g2.dispose();
-            }
-            @Override
-            protected void paintBorder(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(isFocusOwner() ? new Color(58, 103, 229) : new Color(203, 213, 225));
-                g2.setStroke(isFocusOwner() ? new BasicStroke(1.8f) : new BasicStroke(1.0f));
-                g2.drawRoundRect(1, 1, getWidth() - 2, getHeight() - 2, 10, 10);
-                g2.dispose();
-            }
-        };
-        field.setOpaque(false);
-        field.setBackground(new Color(241, 245, 249));
-        field.setForeground(new Color(30, 41, 59));
-        field.setCaretColor(new Color(58, 103, 229));
-        field.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        field.setBorder(BorderFactory.createEmptyBorder(0, 14, 0, 14));
-        field.setPreferredSize(new Dimension(0, 46));
-
-        // Placeholder text
-        field.setText(placeholder);
-        field.setForeground(new Color(148, 163, 184));
-        field.addFocusListener(new java.awt.event.FocusAdapter() {
-            @Override public void focusGained(java.awt.event.FocusEvent e) {
-                if (field.getText().equals(placeholder)) {
-                    field.setText("");
-                    field.setForeground(new Color(30, 41, 59));
-                }
-            }
-            @Override public void focusLost(java.awt.event.FocusEvent e) {
-                if (field.getText().isBlank()) {
-                    field.setText(placeholder);
-                    field.setForeground(new Color(148, 163, 184));
-                }
-            }
-        });
-        return field;
-    }
-
-    private void refreshServicesGrid() {
-        servicesGrid.removeAll();
-        for (String[] s : servicesList) {
-            servicesGrid.add(createServiceCard(s[0], s[1], s[2]));
-        }
-        servicesGrid.revalidate();
-        servicesGrid.repaint();
-    }
-
-    private JPanel createServiceCard(String name, String desc, String price) {
-        JPanel card = new JPanel(new BorderLayout(15, 10)) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(Color.WHITE);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 15, 15);
-                g2.setColor(new Color(226, 232, 240));
-                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 15, 15);
-                g2.dispose();
-            }
-        };
-        card.setOpaque(false);
-        card.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
-
-        JPanel info = new JPanel();
-        info.setLayout(new BoxLayout(info, BoxLayout.Y_AXIS));
-        info.setOpaque(false);
-
-        JLabel nameLabel = new JLabel(name);
-        nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        nameLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        info.add(nameLabel);
-        info.add(Box.createVerticalStrut(5));
-
-        JLabel descLabel = new JLabel(desc);
-        descLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        descLabel.setForeground(new Color(100, 116, 139));
-        descLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        info.add(descLabel);
-        info.add(Box.createVerticalStrut(10));
-
-        JLabel priceLabel = new JLabel("\u20B1" + price);
-        priceLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
-        priceLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        info.add(priceLabel);
-
-        card.add(info, BorderLayout.CENTER);
-
-        // Right column: add-to-cart button (top) + delete button (bottom)
-        JPanel rightCol = new JPanel(new GridBagLayout());
-        rightCol.setOpaque(false);
-
-        GridBagConstraints rc = new GridBagConstraints();
-        rc.gridx = 0;
-        rc.fill = GridBagConstraints.NONE;
-        rc.anchor = GridBagConstraints.CENTER;
-        rc.insets = new Insets(0, 0, 6, 0);
-
-        // "+" add button
-        JButton addBtn = new JButton("+") {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(147, 197, 253));
-                g2.fillOval(0, 0, getWidth(), getHeight());
-                g2.setColor(Color.WHITE);
-                g2.setFont(new Font("Segoe UI", Font.BOLD, 20));
-                FontMetrics fm = g2.getFontMetrics();
-                int x = (getWidth() - fm.stringWidth(getText())) / 2;
-                int y = ((getHeight() - fm.getHeight()) / 2) + fm.getAscent();
-                g2.drawString(getText(), x, y);
-                g2.dispose();
-            }
-        };
-        addBtn.setPreferredSize(new Dimension(32, 32));
-        addBtn.setMinimumSize(new Dimension(32, 32));
-        addBtn.setMaximumSize(new Dimension(32, 32));
-        addBtn.setContentAreaFilled(false);
-        addBtn.setBorderPainted(false);
-        addBtn.setFocusPainted(false);
-        addBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        addBtn.addActionListener(e -> addToCart(name, desc, Double.parseDouble(price)));
-
-        rc.gridy = 0;
-        rightCol.add(addBtn, rc);
-
-        // Trash delete button
-        JButton deleteBtn = new JButton("\uD83D\uDDD1") {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                Color bg = getModel().isRollover() ? new Color(254, 202, 202) : new Color(255, 237, 237);
-                g2.setColor(bg);
-                g2.fillOval(0, 0, getWidth(), getHeight());
-                g2.setColor(new Color(220, 38, 38));
-                g2.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
-                FontMetrics fm = g2.getFontMetrics();
-                String t = getText();
-                int x = (getWidth() - fm.stringWidth(t)) / 2;
-                int y = ((getHeight() - fm.getHeight()) / 2) + fm.getAscent();
-                g2.drawString(t, x, y);
-                g2.dispose();
-            }
-        };
-        deleteBtn.setPreferredSize(new Dimension(28, 28));
-        deleteBtn.setMinimumSize(new Dimension(28, 28));
-        deleteBtn.setMaximumSize(new Dimension(28, 28));
-        deleteBtn.setContentAreaFilled(false);
-        deleteBtn.setBorderPainted(false);
-        deleteBtn.setFocusPainted(false);
-        deleteBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        deleteBtn.setToolTipText("Delete this service");
-        deleteBtn.addActionListener(e -> showDeleteConfirmDialog(name, price));
-
-        rc.gridy = 1;
-        rc.insets = new Insets(0, 0, 0, 0);
-        rightCol.add(deleteBtn, rc);
-
-        card.add(rightCol, BorderLayout.EAST);
-        return card;
-    }
-
-    private void loadServices() {
-        File file = new File(SERVICES_FILE);
-        if (file.exists()) {
-            try (InputStream in = new FileInputStream(file)) {
-                Properties props = new Properties();
-                props.load(in);
-                int count = Integer.parseInt(props.getProperty("count", "0"));
-                for (int i = 0; i < count; i++) {
-                    String n = props.getProperty("service." + i + ".name", "");
-                    String d = props.getProperty("service." + i + ".desc", "Per kg");
-                    String p = props.getProperty("service." + i + ".price", "0.00");
-                    if (!n.isEmpty()) {
-                        servicesList.add(new String[]{ n, d, p });
-                    }
-                }
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-        }
-        // Fall back to defaults if nothing was loaded
-        if (servicesList.isEmpty()) {
-            servicesList.add(new String[]{ "Wash Only",    "Per kg", "10.00" });
-            servicesList.add(new String[]{ "Dry Only",     "Per kg", "10.00" });
-            servicesList.add(new String[]{ "Full Service", "Per kg", "24.29" });
-            servicesList.add(new String[]{ "Fold Only",    "Per kg", "4.29"  });
-            saveServices(); // persist defaults immediately
-        }
-    }
-
-    private void saveServices() {
-        Properties props = new Properties();
-        props.setProperty("count", String.valueOf(servicesList.size()));
-        for (int i = 0; i < servicesList.size(); i++) {
-            props.setProperty("service." + i + ".name",  servicesList.get(i)[0]);
-            props.setProperty("service." + i + ".desc",  servicesList.get(i)[1]);
-            props.setProperty("service." + i + ".price", servicesList.get(i)[2]);
-        }
-        try (OutputStream out = new FileOutputStream(SERVICES_FILE)) {
-            props.store(out, "LaundryPOS – saved services list");
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-    }
-
-    private JPanel createCart() {
-        ShadowPanel outerCard = new ShadowPanel();
-        outerCard.setPreferredSize(new Dimension(400, 0));
-        outerCard.setMinimumSize(new Dimension(380, 0));
-
-        JPanel panel = new JPanel();
-        panel.setOpaque(false);
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-        JLabel title = new JLabel("Current Order");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 24));
-        title.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
-        panel.add(title);
-        panel.add(Box.createVerticalStrut(20));
-
-        // Cart items scroll
-        cartPanel = new JPanel();
-        cartPanel.setLayout(new BoxLayout(cartPanel, BoxLayout.Y_AXIS));
-        cartPanel.setOpaque(false);
-        JScrollPane scroll = new JScrollPane(cartPanel);
-        scroll.setBorder(null);
-        scroll.setOpaque(false);
-        scroll.getViewport().setOpaque(false);
-        scroll.getVerticalScrollBar().setUI(new Scrollbar());
-        scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        panel.add(scroll);
-
-        panel.add(Box.createVerticalStrut(20));
-
-        // Subtotal row
-        subtotalLabel = new JLabel("\u20B10.00");
-        panel.add(createTotalRow("Subtotal:", subtotalLabel, new Font("Arial", Font.PLAIN, 15)));
-        panel.add(Box.createVerticalStrut(10));
-
-        // Tax row
-        taxLabel = new JLabel("\u20B10.00");
-        panel.add(createTotalRow("Tax(12%):", taxLabel, new Font("Arial", Font.PLAIN, 15)));
-        panel.add(Box.createVerticalStrut(15));
-
-        // Separator line
-        JSeparator sep = new JSeparator();
-        sep.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
-        sep.setForeground(new Color(220, 220, 220));
-        panel.add(sep);
-        panel.add(Box.createVerticalStrut(15));
-
-        // Total row
-        totalLabel = new JLabel("\u20B10.00");
-        panel.add(createTotalRow("Total:", totalLabel, new Font("Arial", Font.BOLD, 18)));
-        panel.add(Box.createVerticalStrut(25));
-
-        // Checkout button
-        JButton checkout = new JButton("Proceed to Checkout") {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(37, 99, 235)); // Modern Blue
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
-
-                g2.setColor(Color.WHITE);
-                g2.setFont(new Font("Segoe UI", Font.BOLD, 14));
-                FontMetrics fm = g2.getFontMetrics();
-                int x = (getWidth() - fm.stringWidth(getText())) / 2;
-                int y = ((getHeight() - fm.getHeight()) / 2) + fm.getAscent();
-                g2.drawString(getText(), x, y);
-                g2.dispose();
-            }
-        };
-        checkout.setPreferredSize(new Dimension(Integer.MAX_VALUE, 50));
-        checkout.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
-        checkout.setContentAreaFilled(false);
-        checkout.setBorderPainted(false);
-        checkout.setFocusPainted(false);
-        checkout.addActionListener(e -> {
-            if (cart.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Cart is empty!");
-            } else {
-                double subtotal = 0;
-                for (Item item : cart) {
-                    subtotal += item.price * item.qty;
-                }
-                double tax = subtotal * 0.12;
-
-                JDialog checkoutDialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(LaundryPOS.this),
-                        "Checkout", true);
-                checkoutDialog.setSize(900, 700);
-                checkoutDialog.setLocationRelativeTo(LaundryPOS.this);
-
-                CheckoutScreen checkoutScreen = new CheckoutScreen(LaundryPOS.this, new ArrayList<>(cart), subtotal,
-                        tax);
-                checkoutDialog.add(checkoutScreen);
-                checkoutDialog.setVisible(true);
-            }
-        });
-        panel.add(checkout);
-
-        outerCard.add(panel);
-        return outerCard;
-    }
-
-    // Helper to create a right-aligned total row
-    private JPanel createTotalRow(String labelText, JLabel valueLabel, Font font) {
-        JPanel row = new JPanel(new BorderLayout());
-        row.setBackground(Color.WHITE);
-        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
-        row.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JLabel lbl = new JLabel(labelText);
-        lbl.setFont(font);
-        valueLabel.setFont(font);
-        valueLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 10)); 
-
-        row.add(lbl, BorderLayout.WEST);
-        row.add(valueLabel, BorderLayout.EAST);
-        return row;
+        cart.add(new Item(product));
+        updateCart();
     }
 
     public void clearCart() {
         cart.clear();
+        customerName.setText("");
+        orderNote = "";
+        noteButton.setText("Add note");
         updateCart();
     }
 
-    private void addToCart(String name, String desc, double price) {
-        for (Item item : cart) {
-            if (item.name.equals(name)) {
-                item.qty += 1;
-                updateCart();
-                return;
-            }
-        }
-        cart.add(new Item(name, desc, price, 1));
-        updateCart();
+    public List<OrderPricing.Line> orderLines() {
+        return cart.stream().map(Item::line).toList();
+    }
+
+    public OrderPricing.Totals totals() {
+        PosSettings.Values s = persistence.Repositories.settings().get();
+        return OrderPricing.calculate(orderLines(), s.taxEnabled(), s.taxRate());
     }
 
     private void updateCart() {
-        cartPanel.removeAll();
-        double subtotal = 0;
-
+        cartItems.removeAll();
+        cartCount.setText(cart.size() + " line" + (cart.size() == 1 ? "" : "s") + " · Add items, then review payment");
+        if (cart.isEmpty()) {
+            JPanel empty = column();
+            empty.setBorder(new EmptyBorder(24, 12, 24, 12));
+            empty.add(new JLabel(new AppIcon(AppIcon.Name.RECEIPT, 36, UIStyle.TEXT_SECONDARY)));
+            empty.add(Box.createVerticalStrut(12));
+            empty.add(label("Let's start an order", UIStyle.BOLD, UIStyle.TEXT_PRIMARY));
+            empty.add(Box.createVerticalStrut(7));
+            empty.add(label("Choose a service or product from the catalog.", new Font("Segoe UI", Font.PLAIN, 11),
+                    UIStyle.TEXT_SECONDARY));
+            empty.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
+            cartItems.add(empty);
+        }
         for (Item item : cart) {
-            JPanel itemPanel = new JPanel() {
-                @Override
-                protected void paintComponent(Graphics g) {
-                    Graphics2D g2 = (Graphics2D) g.create();
-                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    g2.setColor(new Color(248, 250, 252)); // Very light gray
-                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 15, 15);
-                    g2.dispose();
+            Surface row = new Surface() {
+                protected void paintComponent(Graphics graphics) {
+                    Graphics2D g = (Graphics2D) graphics.create();
+                    g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g.setColor(new Color(248, 250, 252));
+                    g.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
+                    g.setColor(UIStyle.INPUT_BORDER);
+                    g.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
+                    g.dispose();
                 }
             };
-            itemPanel.setLayout(new BoxLayout(itemPanel, BoxLayout.Y_AXIS));
-            itemPanel.setOpaque(false);
-            itemPanel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-            itemPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
-            itemPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-            JLabel nameLabel = new JLabel(item.name);
-            nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-            nameLabel.setHorizontalAlignment(SwingConstants.LEFT);
-            nameLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-            nameLabel.setMaximumSize(new Dimension(Integer.MAX_VALUE, nameLabel.getPreferredSize().height));
-            itemPanel.add(nameLabel);
-
-            itemPanel.add(Box.createVerticalStrut(3));
-
-            JLabel priceDescLabel = new JLabel("\u20B1" + String.format("%.2f", item.price) + " " + item.desc);
-            priceDescLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-            priceDescLabel.setForeground(new Color(100, 116, 139));
-            priceDescLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-            priceDescLabel.setMaximumSize(new Dimension(Integer.MAX_VALUE, priceDescLabel.getPreferredSize().height));
-            itemPanel.add(priceDescLabel);
-
-            itemPanel.add(Box.createVerticalStrut(10));
-
-            // Quantity and price row
-            JPanel bottom = new JPanel(new BorderLayout());
-            bottom.setOpaque(false);
-            bottom.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-
-            JPanel qtyPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-            qtyPanel.setOpaque(false);
-
-            class QtyBtn extends JButton {
-                public QtyBtn(String t) {
-                    super(t);
-                    setPreferredSize(new Dimension(28, 28));
-                    setFont(new Font("Segoe UI", Font.BOLD, 14));
-                    setBackground(Color.WHITE);
-                    setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
-                    setFocusPainted(false);
-                    setCursor(new Cursor(Cursor.HAND_CURSOR));
-                }
+            row.setBorder(new EmptyBorder(12, 12, 12, 12));
+            row.setAlignmentX(LEFT_ALIGNMENT);
+            row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 112));
+            row.setPreferredSize(new Dimension(280, 112));
+            JPanel top = new JPanel(new BorderLayout(10, 0));
+            top.setOpaque(false);
+            CatalogItem catalogItem = catalog == null ? null
+                    : catalog.items().stream().filter(i -> i.id().equals(item.id)).findFirst().orElse(null);
+            if (catalogItem != null) {
+                ItemPhoto photo = new ItemPhoto(catalogItem);
+                photo.setPreferredSize(new Dimension(38, 38));
+                top.add(photo, BorderLayout.WEST);
             }
-
-            QtyBtn minus = new QtyBtn("-");
-            minus.addActionListener(e -> {
-                if (item.qty > 1) {
-                    item.qty -= 1;
-                } else {
-                    cart.remove(item);
+            JPanel text = column();
+            JLabel name = label(item.name, new Font("Segoe UI", Font.BOLD, 13), UIStyle.TEXT_PRIMARY);
+            name.setToolTipText(item.name);
+            text.add(name);
+            text.add(Box.createVerticalStrut(5));
+            text.add(label(OrderPricing.money(item.unitPrice) + " / " + item.unit, new Font("Segoe UI", Font.PLAIN, 11),
+                    UIStyle.TEXT_SECONDARY));
+            top.add(text, BorderLayout.CENTER);
+            JButton remove = iconButton("Remove " + item.name, AppIcon.Name.TRASH);
+            remove.setPreferredSize(new Dimension(28, 28));
+            remove.setBorder(new EmptyBorder(2, 2, 2, 2));
+            remove.addActionListener(e -> {
+                cart.remove(item);
+                updateCart();
+            });
+            JPanel removeWrap = row(0);
+            removeWrap.add(remove);
+            top.add(removeWrap, BorderLayout.EAST);
+            row.add(top, BorderLayout.NORTH);
+            JPanel bottom = new JPanel(new BorderLayout(8, 0));
+            bottom.setOpaque(false);
+            QuantityControl control = new QuantityControl(item.quantity.doubleValue(),
+                    item.unit == CatalogItem.Unit.KG ? 0.001 : 1, 99999, item.unit == CatalogItem.Unit.KG ? 0.25 : 1,
+                    item.unit == CatalogItem.Unit.KG, item.name);
+            JSpinner qty = control.spinner();
+            JLabel amount = label(OrderPricing.money(item.line().total()), UIStyle.BOLD, UIStyle.TEXT_PRIMARY);
+            qty.addChangeListener(e -> {
+                BigDecimal q = new BigDecimal(qty.getValue().toString());
+                if (item.unit != CatalogItem.Unit.KG && q.stripTrailingZeros().scale() > 0) {
+                    qty.setValue(item.quantity.doubleValue());
+                    return;
                 }
-                updateCart();
+                item.quantity = q;
+                amount.setText(OrderPricing.money(item.line().total()));
+                updateTotals();
             });
-
-            JLabel qtyLabel = new JLabel(item.qty + " kg");
-            qtyLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-            qtyLabel.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 5));
-
-            QtyBtn plus = new QtyBtn("+");
-            plus.addActionListener(e -> {
-                item.qty += 1;
-                updateCart();
-            });
-
-            qtyPanel.add(minus);
-            qtyPanel.add(qtyLabel);
-            qtyPanel.add(plus);
-
-            double itemTotal = item.price * item.qty;
-            JLabel priceLabel = new JLabel("\u20B1" + String.format("%.2f", itemTotal));
-            priceLabel.setFont(new Font("Segoe UI", Font.BOLD, 15));
-            priceLabel.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 5)); 
-            bottom.add(qtyPanel, BorderLayout.WEST);
-            bottom.add(priceLabel, BorderLayout.EAST);
-
-            itemPanel.add(bottom);
-
-            cartPanel.add(itemPanel);
-            cartPanel.add(Box.createVerticalStrut(15));
-
-            subtotal += itemTotal;
+            JPanel quantityRow = new JPanel(new BorderLayout(5, 0));
+            quantityRow.setOpaque(false);
+            quantityRow.add(control, BorderLayout.CENTER);
+            quantityRow.add(label(item.unit.toString(), new Font("Segoe UI", Font.PLAIN, 10), UIStyle.TEXT_SECONDARY),
+                    BorderLayout.EAST);
+            bottom.add(quantityRow, BorderLayout.WEST);
+            bottom.add(amount, BorderLayout.EAST);
+            bottom.setBorder(new EmptyBorder(10, 0, 0, 0));
+            row.add(bottom, BorderLayout.SOUTH);
+            cartItems.add(row);
+            cartItems.add(Box.createVerticalStrut(10));
         }
-
-        double tax = subtotal * 0.12;
-        double total = subtotal + tax;
-
-        subtotalLabel.setText("\u20B1" + String.format("%.2f", subtotal));
-        taxLabel.setText("\u20B1" + String.format("%.2f", tax));
-        totalLabel.setText("\u20B1" + String.format("%.2f", total)); 
-
-        cartPanel.revalidate();
-        cartPanel.repaint();
+        cartItems.revalidate();
+        cartItems.repaint();
+        updateTotals();
+        revalidate();
+        repaint();
     }
 
-    public class Item {
-        public String name, desc;
-        public double price;
-        public int qty;
+    private void updateTotals() {
+        OrderPricing.Totals t = totals();
+        PosSettings.Values s = persistence.Repositories.settings().get();
+        subtotalLabel.setText(OrderPricing.money(t.subtotal()));
+        taxLabel.setText(OrderPricing.money(t.tax()));
+        totalLabel.setText(OrderPricing.money(t.total()));
+        taxCaption.setText(
+                s.taxEnabled() ? "Tax (" + s.taxRate().stripTrailingZeros().toPlainString() + "%)" : "Tax disabled");
+        costBreakdown.setVisible(!cart.isEmpty());
+        noteButton.setEnabled(!cart.isEmpty());
+        checkout.setEnabled(!cart.isEmpty());
+        clear.setEnabled(!cart.isEmpty());
+    }
 
-        public Item(String name, String desc, double price, int qty) {
-            this.name = name;
-            this.desc = desc;
-            this.price = price;
-            this.qty = qty;
+    private void openCheckout() {
+        if (cart.isEmpty())
+            return;
+        // Commit typed spinner values before taking the order snapshot.
+        try {
+            commitSpinners(cartItems);
+        } catch (java.text.ParseException ex) {
+            JOptionPane.showMessageDialog(this, "Enter a valid quantity before checkout.", "Check quantity",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this), "Checkout",
+                Dialog.ModalityType.APPLICATION_MODAL);
+        CheckoutScreen payment = new CheckoutScreen(this, orderLines(), totals(),
+                persistence.Repositories.settings().get());
+        payment.setOrderDetails(customerName.getText().isBlank() ? "Walk-in customer" : customerName.getText().trim(),
+                orderNote);
+        dialog.setContentPane(payment);
+        dialog.setSize(900, 720);
+        dialog.setMinimumSize(new Dimension(680, 600));
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+
+    private void commitSpinners(Container container) throws java.text.ParseException {
+        for (Component c : container.getComponents()) {
+            if (c instanceof JSpinner spinner)
+                spinner.commitEdit();
+            else if (c instanceof Container child)
+                commitSpinners(child);
+        }
+    }
+
+    public static final class Item {
+        public final String id, name;
+        public final CatalogItem.Unit unit;
+        public final BigDecimal unitPrice;
+        public BigDecimal quantity = BigDecimal.ONE;
+
+        Item(CatalogItem item) {
+            id = item.id();
+            name = item.name();
+            unit = item.unit();
+            unitPrice = item.price();
+        }
+
+        OrderPricing.Line line() {
+            return new OrderPricing.Line(id, name, unit.toString(), quantity, unitPrice);
+        }
+    }
+
+    private class CatalogGrid extends JPanel implements Scrollable {
+        CatalogGrid() {
+            setOpaque(false);
+        }
+
+        private int columns() {
+            return listView ? 1 : Math.max(1, getWidth() / 210);
+        }
+
+        private int cellHeight() {
+            return listView ? 106 : persistence.Repositories.settings().get().compact() ? 255 : 284;
+        }
+
+        public Dimension getPreferredSize() {
+            int cols = columns();
+            return new Dimension(200, Math.max(1, (getComponentCount() + cols - 1) / cols) * (cellHeight() + 14));
+        }
+
+        public void doLayout() {
+            int cols = columns(), gap = 14, w = Math.max(0, (getWidth() - gap * (cols - 1)) / cols);
+            for (int i = 0; i < getComponentCount(); i++)
+                getComponent(i).setBounds((i % cols) * (w + gap), (i / cols) * (cellHeight() + gap), w, cellHeight());
+        }
+
+        public Dimension getPreferredScrollableViewportSize() {
+            return new Dimension(600, 500);
+        }
+
+        public int getScrollableUnitIncrement(Rectangle r, int o, int d) {
+            return 24;
+        }
+
+        public int getScrollableBlockIncrement(Rectangle r, int o, int d) {
+            return r.height - 24;
+        }
+
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        public boolean getScrollableTracksViewportHeight() {
+            return false;
         }
     }
 }
