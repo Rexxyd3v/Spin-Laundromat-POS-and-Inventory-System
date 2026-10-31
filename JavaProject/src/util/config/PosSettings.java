@@ -80,6 +80,7 @@ public final class PosSettings {
 
     public static void save(Values values) throws IOException {
         synchronized (persistence.LocalTransactions.LOCK) {
+            security.LocalAuth.require(security.LocalAuth.Permission.SETTINGS);
             Properties p = new Properties();
             p.setProperty("store.name", values.storeName().trim());
             p.setProperty("store.address", values.address());

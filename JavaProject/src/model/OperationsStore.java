@@ -77,6 +77,7 @@ public final class OperationsStore {
     public static Branch addBranch(String name) throws IOException {
         text(name, "Branch name", 80);
         synchronized (LocalTransactions.LOCK) {
+            security.LocalAuth.require(security.LocalAuth.Permission.OPERATIONS);
             if (branches().stream().anyMatch(b -> b.name().equalsIgnoreCase(name.trim())))
                 throw new IllegalArgumentException("A branch already uses that name.");
             var p = load();
@@ -114,6 +115,7 @@ public final class OperationsStore {
     public static Transfer request(String from, String to, String itemId, BigDecimal quantity, String note)
             throws IOException {
         synchronized (LocalTransactions.LOCK) {
+            security.LocalAuth.require(security.LocalAuth.Permission.OPERATIONS);
             branch(from);
             branch(to);
             if (from.equals(to))
@@ -148,6 +150,7 @@ public final class OperationsStore {
 
     public static void advanceTransfer(String id, TransferState next) throws IOException {
         synchronized (LocalTransactions.LOCK) {
+            security.LocalAuth.require(security.LocalAuth.Permission.OPERATIONS);
             var transfer = transfers().stream().filter(t -> t.id().equals(id)).findFirst()
                     .orElseThrow(() -> new IllegalArgumentException("Transfer was not found."));
             if (!((transfer.state() == TransferState.REQUESTED
@@ -208,6 +211,7 @@ public final class OperationsStore {
         if (!Set.of("Washer", "Dryer").contains(type))
             throw new IllegalArgumentException("Choose Washer or Dryer.");
         synchronized (LocalTransactions.LOCK) {
+            security.LocalAuth.require(security.LocalAuth.Permission.OPERATIONS);
             if (machines().stream().anyMatch(m -> m.name().equalsIgnoreCase(name.trim())))
                 throw new IllegalArgumentException("A machine already uses that name.");
             var p = load();
@@ -222,6 +226,7 @@ public final class OperationsStore {
 
     public static void setMachineEnabled(String id, boolean enabled) throws IOException {
         synchronized (LocalTransactions.LOCK) {
+            security.LocalAuth.require(security.LocalAuth.Permission.OPERATIONS);
             if (machines().stream().noneMatch(m -> m.id().equals(id)))
                 throw new IllegalArgumentException("Machine not found.");
             if (!enabled && bookings().stream().anyMatch(b -> b.machineId().equals(id)
@@ -254,6 +259,7 @@ public final class OperationsStore {
     public static Booking reserve(String machine, String order, Instant start, Instant end, String note)
             throws IOException {
         synchronized (LocalTransactions.LOCK) {
+            security.LocalAuth.require(security.LocalAuth.Permission.OPERATIONS);
             if (machines().stream().noneMatch(m -> m.id().equals(machine) && m.enabled()))
                 throw new IllegalArgumentException("Choose an available machine.");
             if (start == null || end == null || !end.isAfter(start) || Duration.between(start, end).toHours() >= 24
@@ -285,6 +291,7 @@ public final class OperationsStore {
 
     public static void advanceBooking(String id, BookingState next) throws IOException {
         synchronized (LocalTransactions.LOCK) {
+            security.LocalAuth.require(security.LocalAuth.Permission.OPERATIONS);
             var b = bookings().stream().filter(v -> v.id().equals(id)).findFirst()
                     .orElseThrow(() -> new IllegalArgumentException("Booking not found."));
             if (!((b.state() == BookingState.RESERVED

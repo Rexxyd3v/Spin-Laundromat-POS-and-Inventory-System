@@ -36,6 +36,7 @@ public class LoginAnimationPreview {
         Path output = Path.of(args[0]);
         Files.createDirectories(output);
         System.setProperty("laundry.dataDir", Files.createTempDirectory("login-animation-preview-").toString());
+        AuthTestSupport.loginOwner();
         TransitionPane[] scene = { null };
         SwingUtilities.invokeAndWait(() -> {
             UIStyle.installDefaults();

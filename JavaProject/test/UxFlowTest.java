@@ -41,6 +41,7 @@ public class UxFlowTest {
     public static void main(String[] args) throws Exception {
         Path root = Files.createTempDirectory("laundry-ux-test-");
         System.setProperty("laundry.dataDir", root.toString());
+        AuthTestSupport.loginOwner();
         System.setProperty("laundry.legacyServices", root.resolve("none.properties").toString());
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Manila"));
         List<SavedSales.Sale> sales = new ArrayList<>();

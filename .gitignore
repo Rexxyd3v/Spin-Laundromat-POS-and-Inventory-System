@@ -30,3 +30,9 @@ data/profile.properties
 
 JavaProject/data/operations.properties
 data/operations.properties
+
+JavaProject/data/printer.properties
+data/printer.properties
+
+# Local account password hashes and master key hash
+**/data/authentication.properties

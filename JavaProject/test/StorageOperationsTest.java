@@ -98,6 +98,7 @@ public class StorageOperationsTest {
         Path data = sandbox.resolve("data");
         Files.createDirectories(data);
         System.setProperty("laundry.dataDir", data.toString());
+        AuthTestSupport.loginOwner();
         System.setProperty("laundry.legacyServices", sandbox.resolve("missing.properties").toString());
         var catalog = Repositories.catalog();
         catalog.save(catalog.items());
@@ -126,7 +127,7 @@ public class StorageOperationsTest {
         check(confirmation.receipt().contains("Date:") && confirmation.receipt().contains("Branch: Main branch"),
                 "Confirmed receipt snapshots include date and source branch");
         check(balance("main", product.id()).compareTo(number("18")) == 0, "Checkout deducts stock once");
-        new TeamStore().save(List.of(new TeamStore.Member("renamed", "New operator", "", "Owner", true)));
+        new TeamStore().save(List.of(new TeamStore.Member(ActiveProfile.current().id(), "New operator", "", "Owner", true)));
         var retry = new CheckoutService().confirm(order);
         check(retry.equals(confirmation) && Repositories.orders().read().sales().size() == 1,
                 "Retry returns the same confirmation without a second sale");

@@ -40,6 +40,7 @@ public class ModernPosTest {
     public static void main(String[] args) throws Exception {
         Path data = Files.createTempDirectory("laundry-modern-test-");
         System.setProperty("laundry.dataDir", data.toString());
+        AuthTestSupport.loginOwner();
         Path legacy = data.resolve("legacy-services.properties");
         Files.writeString(legacy, "count=1\nservice.0.name=Test wash\nservice.0.desc=Per kg\nservice.0.price=24.29\n");
         System.setProperty("laundry.legacyServices", legacy.toString());

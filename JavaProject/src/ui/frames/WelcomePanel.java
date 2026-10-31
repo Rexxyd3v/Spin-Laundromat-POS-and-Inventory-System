@@ -75,6 +75,7 @@ public final class WelcomePanel extends JPanel {
         JTextField username = null;
         if (staff) {
             username = field("Username");
+            username.setName("loginUsername");
             username.getAccessibleContext().setAccessibleName("Username");
             addField(form, formField("Username", username));
         }
@@ -128,21 +129,71 @@ public final class WelcomePanel extends JPanel {
         submit.setName("loginSubmit");
         submit.setAlignmentX(CENTER_ALIGNMENT);
         submit.setMaximumSize(new Dimension(Integer.MAX_VALUE, 48));
+        JTextArea feedback = new JTextArea("Local account access · passwords are protected", 3, 28);
+        feedback.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        feedback.setForeground(UIStyle.TEXT_SECONDARY);
+        feedback.setBorder(BorderFactory.createEmptyBorder());
+        feedback.setOpaque(false);
+        feedback.setEditable(false);
+        feedback.setFocusable(false);
+        feedback.setLineWrap(true);
+        feedback.setWrapStyleWord(true);
+        feedback.setName("loginStatus");
+        feedback.setAlignmentX(CENTER_ALIGNMENT);
+        feedback.setMaximumSize(new Dimension(Integer.MAX_VALUE, 48));
+        JTextField accountName = username;
         submit.addActionListener(e -> {
             if (!submit.isEnabled())
                 return;
-            submit.setEnabled(false);
-            try {
-                proceed.run();
-            } catch (RuntimeException failure) {
-                submit.setEnabled(true);
-                throw failure;
+            char[] secret = password.getPassword();
+            password.setText("");
+            if (secret.length == 0) {
+                feedback.setText(staff ? "Enter your username and password." : "Enter your master key.");
+                return;
             }
+            String user = staff ? accountName.getText() : "";
+            submit.setEnabled(false);
+            firstInput.setEnabled(false);
+            password.setEnabled(false);
+            feedback.setText("Verifying…");
+            new SwingWorker<Boolean, Void>() {
+                protected Boolean doInBackground() throws Exception {
+                    try {
+                        if (staff)
+                            return security.LocalAuth.signIn(user, secret).mustChangePassword();
+                        security.LocalAuth.unlock(secret);
+                        return false;
+                    } finally {
+                        java.util.Arrays.fill(secret, '\0');
+                    }
+                }
+
+                protected void done() {
+                    try {
+                        boolean change = get();
+                        if (change && !AuthDialogs.changePassword(WelcomePanel.this)) {
+                            security.LocalAuth.cancelSignIn();
+                            feedback.setText("Change your temporary password to enter the workspace.");
+                        } else {
+                            proceed.run();
+                            return;
+                        }
+                    } catch (Exception failure) {
+                        Throwable cause = failure.getCause() == null ? failure : failure.getCause();
+                        feedback.setText(cause.getMessage() == null ? "Could not sign in. Please try again."
+                                : cause.getMessage());
+                        feedback.setToolTipText(feedback.getText());
+                    }
+                    submit.setEnabled(true);
+                    firstInput.setEnabled(true);
+                    password.setEnabled(true);
+                    focusInput();
+                }
+            }.execute();
         });
         form.add(submit);
         form.add(Box.createVerticalStrut(18));
-        centered(form, "Preview mode · credentials are not verified yet", new Font("Segoe UI", Font.PLAIN, 11),
-                UIStyle.TEXT_SECONDARY);
+        form.add(feedback);
         form.setPreferredSize(new Dimension(420, form.getPreferredSize().height));
         intro = new IntroPanel(form);
         motionListener = e -> intro.finishIfReduced();

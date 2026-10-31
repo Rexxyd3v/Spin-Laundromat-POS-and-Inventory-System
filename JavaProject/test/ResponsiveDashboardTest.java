@@ -57,6 +57,7 @@ public class ResponsiveDashboardTest {
     public static void main(String[] args) throws Exception {
         Path root = Files.createTempDirectory("laundry-responsive-");
         System.setProperty("laundry.dataDir", root.toString());
+        AuthTestSupport.loginOwner();
         System.setProperty("laundry.legacyServices", root.resolve("missing.properties").toString());
         JFrame[] frame = { null };
         WorkspacePanel[] workspace = { null };

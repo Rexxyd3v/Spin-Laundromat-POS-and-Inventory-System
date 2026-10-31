@@ -212,7 +212,9 @@ Failed uploads must be retryable; unreferenced assets need a delayed cleanup pol
    working while replacing its storage implementation.
 2. **Build the central schema and API.** Add real login, branch membership checks,
    server pricing, transaction-safe stock updates, idempotent checkout, and audit
-   records. Current profile switching is display identity, not authentication.
+   records. Local authenticated accounts now exist; migrate identity explicitly to
+   Supabase Auth and branch memberships. Do not upload local password hashes or rely
+   on desktop role checks as the online authorization boundary.
 3. **Import a copied dataset into staging.** Back up the complete current data
    folder. Map local catalog IDs per source branch to avoid collisions such as
    repeated `legacy-service-0` identifiers. Preserve order UUIDs, receipt snapshots,

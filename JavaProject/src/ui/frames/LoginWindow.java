@@ -11,6 +11,11 @@ import util.config.*;
  */
 public class LoginWindow extends JFrame {
     private final TransitionPane screens;
+    private boolean workspaceOpen;
+    private final Timer sessionWatch = new Timer(2000, e -> {
+        if (workspaceOpen && !security.LocalAuth.isSignedIn())
+            logout();
+    });
 
     protected LoginWindow(boolean startWithStaff) {
         UIStyle.installDefaults();
@@ -23,6 +28,7 @@ public class LoginWindow extends JFrame {
         setSize(1200, 800);
         setLocationRelativeTo(null);
         setExtendedState(MAXIMIZED_BOTH);
+        sessionWatch.start();
     }
 
     private WelcomePanel welcome(boolean staff) {
@@ -41,14 +47,34 @@ public class LoginWindow extends JFrame {
         });
     }
 
+    private void logout() {
+        workspaceOpen = false;
+        for (Window child : getOwnedWindows())
+            child.dispose();
+        security.LocalAuth.signOut();
+        showWelcome(false);
+    }
+
     private void showWorkspace() {
+        security.LocalAuth.current();
+        workspaceOpen = true;
         screens.transitionTo(() -> {
             setTitle(persistence.Repositories.settings().get().storeName() + " · Laundry workspace");
-            return new WorkspacePanel(() -> showWelcome(false));
+            return new WorkspacePanel(this::logout);
         });
     }
 
+    @Override
+    public void dispose() {
+        sessionWatch.stop();
+        super.dispose();
+    }
+
     public void display() {
+        if (!security.LocalAuth.configured() && !AuthDialogs.setup(this)) {
+            dispose();
+            return;
+        }
         setVisible(true);
     }
 }

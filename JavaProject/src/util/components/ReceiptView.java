@@ -25,42 +25,77 @@ public final class ReceiptView extends JPanel {
         JPanel controls = new JPanel(new BorderLayout(12, 0));
         controls.setOpaque(false);
         JComboBox<Integer> paper = combo(new Integer[] { 58, 80 });
-        paper.setSelectedItem(persistence.Repositories.settings().get().receiptWidth());
+        try {
+            paper.setSelectedItem(persistence.PrinterPreferences.load().paperWidth());
+        } catch (Exception ex) {
+            paper.setSelectedItem(persistence.Repositories.settings().get().receiptWidth());
+        }
         paper.getAccessibleContext().setAccessibleName("Receipt paper width in millimetres");
         JButton print = button(reprint ? "Print reprint" : "Print receipt", AppIcon.Name.PRINT, true);
         controls.add(formField("Paper width (mm)", paper), BorderLayout.WEST);
         controls.add(print, BorderLayout.EAST);
         add(controls, BorderLayout.SOUTH);
+        JLabel printerLabel = label("Saved printer and margins are used when printing.", UIStyle.SMALL,
+                UIStyle.TEXT_SECONDARY);
+        JPanel footer = new JPanel(new BorderLayout(0, 8));
+        footer.setOpaque(false);
+        footer.add(controls, BorderLayout.NORTH);
+        footer.add(printerLabel, BorderLayout.SOUTH);
+        remove(controls);
+        add(footer, BorderLayout.SOUTH);
         print.addActionListener(e -> {
+            persistence.PrinterPreferences.Config config;
             try {
-                ReceiptPrinter document = new ReceiptPrinter(printable, (Integer) paper.getSelectedItem());
-                PrinterJob job = PrinterJob.getPrinterJob();
-                job.setJobName("Laundry receipt");
-                job.setPrintable(document, document.pageFormat());
-                if (!job.printDialog())
-                    return;
-                print.setEnabled(false);
-                new SwingWorker<Void, Void>() {
-                    protected Void doInBackground() throws Exception {
-                        job.print();
-                        return null;
-                    }
-
-                    protected void done() {
-                        print.setEnabled(true);
-                        try {
-                            get();
-                        } catch (Exception ex) {
-                            JOptionPane.showMessageDialog(ReceiptView.this,
-                                    "Printing failed. The order stays saved; retry printing without creating another sale.",
-                                    "Print receipt", JOptionPane.ERROR_MESSAGE);
-                        }
-                    }
-                }.execute();
+                config = persistence.PrinterPreferences.load().withWidth((Integer) paper.getSelectedItem());
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "No printer is available. Your order remains saved.",
-                        "Print receipt", JOptionPane.ERROR_MESSAGE);
+                printerLabel.setText("Review Receipt printer settings before printing.");
+                return;
             }
+            print.setEnabled(false);
+            paper.setEnabled(false);
+            printerLabel.setText("Preparing saved printer…");
+            new SwingWorker<application.PrinterServiceManager.Prepared, Void>() {
+                protected application.PrinterServiceManager.Prepared doInBackground() throws Exception {
+                    return application.PrinterServiceManager.prepare(printable, config);
+                }
+
+                protected void done() {
+                    try {
+                        var prepared = get();
+                        if (config.showDialog() && !prepared.job().printDialog()) {
+                            print.setEnabled(true);
+                            paper.setEnabled(true);
+                            printerLabel.setText("Print cancelled. Order stays saved.");
+                            return;
+                        }
+                        new SwingWorker<Void, Void>() {
+                            protected Void doInBackground() throws Exception {
+                                prepared.job().print();
+                                return null;
+                            }
+
+                            protected void done() {
+                                print.setEnabled(true);
+                                paper.setEnabled(true);
+                                try {
+                                    get();
+                                    printerLabel.setText("Print job sent.");
+                                } catch (Exception ex) {
+                                    printerLabel.setText("Printing failed. Retry without creating another sale.");
+                                    printerLabel.setToolTipText(
+                                            ex.getCause() == null ? ex.getMessage() : ex.getCause().getMessage());
+                                }
+                            }
+                        }.execute();
+                    } catch (Exception ex) {
+                        print.setEnabled(true);
+                        paper.setEnabled(true);
+                        Throwable cause = ex.getCause() == null ? ex : ex.getCause();
+                        printerLabel.setText("Printer unavailable. Check Receipt printer settings.");
+                        printerLabel.setToolTipText(cause.getMessage());
+                    }
+                }
+            }.execute();
         });
     }
 

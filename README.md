@@ -26,7 +26,7 @@ their folders within `src`, such as `model`, `ui.frames`, and `util.components`.
 
 ## Dashboard and counter flow
 
-The workspace opens on **Overview**. Select the last 7 or 30 days to update the
+Owner and Manager workspaces open on **Overview**; Cashier workspaces open on the POS. Select the last 7 or 30 days to update the
 revenue and order metrics, previous-period comparison, revenue trend, payment mix,
 best sellers, and recent orders together. Hover over the trend for daily amounts.
 Revenue includes the saved order total; best-seller rankings use item sales before
@@ -43,17 +43,59 @@ Long pages have a main scrolling viewport. When an inner table reaches its scrol
 boundary, the mouse wheel continues scrolling the page. The dashboard adapts its
 metric cards and chart columns to narrower windows.
 
+## Local sign-in and accounts
+
+Sign-in is now **Master Key → username/password → workspace**. A new installation
+shows an Owner setup form; there is no built-in login bypass or hard-coded default
+password. For explicit first-time sample setup, run `./Run.ps1 -SampleAccounts`.
+It creates `owner`, `manager`, and `cashier` with unique randomly generated temporary
+passwords and a random master key, displayed once in the terminal. It refuses to
+replace existing accounts. Sample passwords must be changed before entering the
+workspace for the first time. Credentials are case-sensitive; usernames ignore case.
+
+The Owner can open **Settings → Accounts & access** to create accounts, change roles,
+disable access, reset a temporary password, or change the master key. At least one
+Owner must remain active. Resets, role/status changes and master-key changes revoke
+existing sessions; the window checks for revocation every two seconds and writes
+check authorization immediately. The profile menu lets each signed-in user change
+their own password. **Sign out** clears the session and master-key unlock.
+
+| Role | Access |
+| --- | --- |
+| Owner | All pages, accounts, store/tax settings, backups and operational actions |
+| Manager | Analytics, POS, catalog/stock editing, operations, reports, team viewing and printer settings |
+| Cashier | POS, catalog/stock viewing, local printer settings and own profile/password |
+
+Profiles and authentication are linked by ID. Changing a profile label cannot grant
+account permissions; switching to another user requires a new sign-in. **Team**
+manages display names, contact details and photos; **Accounts & access** manages the
+actual sign-in permissions. Profile-only legacy members do not automatically gain
+login access. Existing Owner profile photos and business records are retained.
+
+The local `JavaProject/data/authentication.properties` file contains independently
+salted PBKDF2-HMAC-SHA256 hashes (600,000 iterations) for passwords and the master key,
+plus account metadata and persistent failed-attempt limits. It contains no plaintext
+passwords. Five failed attempts temporarily lock that account or master-key entry
+for one minute. Unknown and unavailable accounts share the same error message.
+Corrupt account files fail closed and are never silently reset. The old
+`masterkey.key` is not used or imported into authentication.
+
+Sessions exist only in memory and expire when the app closes or the user signs out.
+The account file is excluded from Git and included in full local backups; keep backups
+private and retain the current master key separately. This is local application access
+control for one workstation, not encrypted business data or multi-device online auth.
+People who can modify the application/data files through Windows can bypass local
+application controls. Supabase authentication will be a separate migration.
+
+Password storage follows the [OWASP password storage guidance](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
+
 ## Sidebar name and profile photo
 
-Click the profile card at the bottom of the sidebar, then **Edit my profile**.
-Choose a PNG/JPEG photo, update the name, and save. The selected profile's name,
-role label, and circular photo appear in the sidebar and top bar. Initials are
-shown until a photo is provided. **Team** also supports adding and editing photos
-for other staff profiles. Use the profile picker to select an active team member.
-
-Profiles are saved locally. The name processing each new checkout is recorded in
-the order, so renaming or switching profiles does not change old receipt history.
-Profile selection identifies the current operator; it does not authenticate them.
+Click the sidebar profile card, then **Edit profile**. Choose a PNG/JPEG photo, update
+the name and save. The authenticated profile's name, role and circular photo appear
+in the sidebar and top bar. Initials appear until a photo is provided. Owners can
+also edit team display profiles. Each saved order records the verified operator ID,
+username and name, so changing a profile later does not change old receipts.
 
 ## Add images to services and products
 
@@ -83,7 +125,8 @@ Cards preserve the image's proportions and crop to fill their image area.
 - Physical stock counts and minimum levels. Tracked stock decreases from saved
   sales; checkout rejects quantities above the available tracked balance. Items
   without a recorded stock count remain untracked.
-- Saved staff profiles with contact details, role labels, and active status.
+- Authenticated local accounts, role permissions, password changes and resets, plus
+  saved staff profiles, contact details and photos.
 
 ## Data tools, stock alerts and operations
 
@@ -118,18 +161,19 @@ reserving again. Finish/cancel active bookings before marking a machine unavaila
 
 Overview now includes **7/30/90-day or custom inclusive date ranges**, sales excluding
 tax, recorded tax, cash collections, in-transit transfers and machine activity.
-Custom ranges support 1–366 days. Revenue remains the tax-inclusive confirmed sale
+Custom ranges support 1–366 days; date inputs appear only for Custom range.
+The dashboard uses adaptive rows with a compact secondary totals strip. Navigation
+automatically collapses on smaller windows, and its scrollbar uses a dark track. Revenue remains the tax-inclusive confirmed sale
 total; cash collections here are fully paid Cash checkouts, not shift settlement.
 No cost or profit estimate is invented. Receipt preview/reprint shares **58/80 mm**
-printing, wraps long text and paginates. Set the preferred width in **Settings →
-Store & receipt**. New receipts snapshot date, branch and operator when confirmed;
+printing, wraps long text and paginates. Configure the device in **Settings → Receipt printer**. New receipts snapshot date, branch and operator when confirmed;
 historical reprints retain that text. Printer failures do not create another sale.
 
 ## Current boundaries
 
-The welcome screens remain a clearly labeled **preview**: credential verification
-and role enforcement are not implemented. Profile switching is display identity,
-not authentication. GCash is manually verified by the cashier.
+Local credential verification and role checks are active. Account storage is local
+to this workstation; it does not yet provide online identity or branch membership.
+GCash is manually verified by the cashier.
 
 All branch stock, transfers and machine bookings operate in **one local workspace**.
 The POS currently sells from Main branch. This is not online branch synchronization
@@ -180,7 +224,10 @@ catalog/settings persistence, image import/rendering and restart loading, stock,
 reports, staff photos, operator history, analytics windows and comparisons, actual
 mouse-wheel scrolling, order navigation, workspace layouts, logo
 packaging, stationary login artwork, login-only yellow accents, animation timer
-lifecycle, and duplicate input during screen transitions.
+lifecycle, and duplicate input during screen transitions. Authentication checks cover
+wrong/empty credentials, mandatory password replacement, role restrictions in the UI
+and data layer, profile impersonation, account revocation, persistent lockout, fresh
+process sign-in, sample provisioning and preservation of existing records.
 Add/edit catalog dialogs also support scrolling and narrow windows: images and
 fields stack, paired fields become single rows, and Save/Cancel stay visible.
 Dialog checks cover actual mouse-wheel movement, reaching the last field, keeping
@@ -194,3 +241,53 @@ threshold alerts, branch transfer reconciliation/concurrency, machine conflicts,
 backup tampering/path checks, byte-identical isolated restore, restored-state restart,
 custom-date UI behavior and 58/80 mm receipt wrapping/pagination. Preview data remains
 isolated from live records.
+
+Native Swing validation checks also cover populated dashboard cards, non-overlapping
+sections, small-window navigation and the actual painted sidebar gutter at
+1366×768, 1024×650 and 940×680.
+
+## Thermal printer setup
+
+1. Connect the thermal printer and install its Windows driver (USB or network queue).
+2. Open **Settings → Receipt printer** and click **Find printers**. Type part of the
+   printer name to filter the installed queues, then select the intended device.
+3. Configure **58/80 mm paper**, all four margins, text size and extra paper feed.
+   Review the live preview. Short receipts use content-based length; long receipts
+   paginate, subject to the installed driver's supported paper settings.
+4. Use **Test print** to check alignment and the peso symbol. This is a sample, not
+   a sale. A test print always offers the system print dialog and only sends a job
+   after the user confirms it. A submitted job still needs checking on the paper.
+5. Click **Save printer**. Checkout and historical receipt printing use the saved
+   queue and layout. The optional print dialog can remain enabled for each receipt.
+
+This discovery lists installed 2D print services; it does not install drivers or scan
+for unconfigured network devices. An explicitly saved missing printer does not
+silently redirect receipts to another queue. Status reflects what the driver reports;
+not all drivers report physical readiness. Paper cutting and cash-drawer commands
+are model-specific and are not configured by this graphics-based driver path.
+[Java printer selection and page validation](https://docs.oracle.com/en/java/javase/21/docs/api/java.desktop/java/awt/print/PrinterJob.html).
+
+Device preferences live in `printer.properties`, separate from store appearance and
+tax settings. Old installations use their previous receipt width until a device
+profile is saved. Backups include this file; review the saved queue after restoring
+onto another PC. Invalid printer settings are reported without overwriting them.
+
+The notification flyout now has Low stock/Out of stock filters, a branch selector,
+refresh, quantity/threshold cards, last-update time and per-item inventory actions.
+Selecting an item's arrow opens its branch and selects that product in Inventory.
+An open flyout updates when stock changes and keeps its selected branch when an
+alert resolves. Alerts are actionable balances rather than dismissible messages;
+restocking above the threshold clears them.
+
+## Sample catalog photos
+
+Eight generic sample photos are bundled under `JavaProject/src/resources/catalog-samples`.
+The installer fills only missing photos for the standard Wash/Dry/Full/Fold services
+and four starter products. Existing uploads and item details are preserved. Product
+photos are unbranded samples, not official brand images. Replace them using
+Catalog → Edit item → Choose image.
+
+Run `.\Run.ps1 -SampleImages` to explicitly apply missing samples again. The catalog
+is backed up in `.cleanup-backups` before an installation that changes images.
+Normal launches never automatically refill photos you have removed. Generation
+prompts, asset names and tool details are in the sample folder's README.

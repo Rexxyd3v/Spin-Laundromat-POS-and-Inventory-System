@@ -77,6 +77,7 @@ public class FeatureUiTest {
     public static void main(String[] args) throws Exception {
         Path root = Files.createTempDirectory("laundry-feature-ui-");
         System.setProperty("laundry.dataDir", root.toString());
+        AuthTestSupport.loginOwner();
         System.setProperty("laundry.legacyServices", root.resolve("missing.properties").toString());
         UIStyle.installDefaults();
         var catalog = new CatalogStore();

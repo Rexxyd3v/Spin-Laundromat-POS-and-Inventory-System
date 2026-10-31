@@ -44,9 +44,18 @@ public final class BackupService {
             throw new IOException("Unsafe archive entry.");
     }
 
+    private static Path canonical(Path path) throws IOException {
+        Path absolute = path.toAbsolutePath().normalize();
+        if (Files.exists(absolute))
+            return absolute.toRealPath();
+        Path parent = absolute.getParent();
+        return parent == null ? absolute : canonical(parent).resolve(absolute.getFileName()).normalize();
+    }
+
     public static Path create(Path destination) throws IOException {
-        Path target = destination.toAbsolutePath().normalize();
-        if (target.startsWith(DataLocation.root()))
+        security.LocalAuth.require(security.LocalAuth.Permission.BACKUP);
+        Path target = canonical(destination);
+        if (target.startsWith(canonical(DataLocation.root())))
             throw new IOException("Save the backup outside the active data folder.");
         if (Files.exists(target))
             throw new FileAlreadyExistsException("Choose a new backup filename.");
@@ -156,6 +165,7 @@ public final class BackupService {
     }
 
     public static Verified verify(Path file) throws IOException {
+        security.LocalAuth.require(security.LocalAuth.Permission.BACKUP);
         try (ZipFile zip = new ZipFile(file.toFile())) {
             Properties manifest = manifest(zip);
             int count;
@@ -194,9 +204,10 @@ public final class BackupService {
     }
 
     public static Path restoreCopy(Path archive, Path destination) throws IOException {
+        security.LocalAuth.require(security.LocalAuth.Permission.BACKUP);
         verify(archive);
-        Path target = destination.toAbsolutePath().normalize();
-        if (target.startsWith(DataLocation.root()) || Files.exists(target) || target.getParent() == null
+        Path target = canonical(destination);
+        if (target.startsWith(canonical(DataLocation.root())) || Files.exists(target) || target.getParent() == null
                 || !Files.isDirectory(target.getParent()))
             throw new IOException(
                     "Restore to a new folder outside active data. Existing folders are never overwritten.");

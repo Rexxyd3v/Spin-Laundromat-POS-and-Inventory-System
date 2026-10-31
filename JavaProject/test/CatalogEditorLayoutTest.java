@@ -101,6 +101,7 @@ public class CatalogEditorLayoutTest {
 
     public static void main(String[] args) throws Exception {
         System.setProperty("laundry.dataDir", Files.createTempDirectory("catalog-layout-test-").toString());
+        AuthTestSupport.loginOwner();
         UIStyle.installDefaults();
         CatalogStore store = new CatalogStore();
         SwingUtilities.invokeAndWait(() -> {

@@ -21,7 +21,7 @@ public class SettingsPanel extends PageLayout {
             reset = button("Restore defaults", null, false);
     private final JPanel sections = new JPanel(new CardLayout()), nav = column();
     private String active = "Appearance";
-    private final JComboBox<Integer> receiptWidth = combo(new Integer[] { 58, 80 });
+    private final Surface settingsFooter = new Surface();
 
     public SettingsPanel() {
         super("WORKSPACE SETTINGS", "Your store, your way.", "Fine-tune the details that make this workspace yours.");
@@ -33,18 +33,26 @@ public class SettingsPanel extends PageLayout {
         }
         address.getAccessibleContext().setAccessibleName("Store address");
         footer.getAccessibleContext().setAccessibleName("Receipt footer");
-        nav.setPreferredSize(new Dimension(170, 200));
+        nav.setPreferredSize(new Dimension(190, 200));
         sections.setOpaque(false);
-        sections.add(appearance(), "Appearance");
-        sections.add(branding(), "Store & receipt");
-        sections.add(pricing(), "Checkout");
-        sections.add(new ui.panels.DataToolsPanel(), "Data & backup");
+        boolean owner = security.LocalAuth.allowed(security.LocalAuth.Permission.SETTINGS);
+        if (!owner)
+            active = "Receipt printer";
+        if (owner) {
+            sections.add(appearance(), "Appearance");
+            sections.add(branding(), "Store & receipt");
+            sections.add(pricing(), "Checkout");
+            sections.add(new AccountsPanel(), "Accounts & access");
+        }
+        sections.add(new ReceiptPrinterPanel(), "Receipt printer");
+        if (owner)
+            sections.add(new ui.panels.DataToolsPanel(), "Data & backup");
         JPanel content = new JPanel(new BorderLayout(24, 0));
         content.setOpaque(false);
         content.add(nav, BorderLayout.WEST);
         content.add(sections, BorderLayout.CENTER);
         body.add(content, BorderLayout.CENTER);
-        Surface bottom = new Surface();
+        Surface bottom = settingsFooter;
         bottom.setBorder(new EmptyBorder(12, 16, 12, 16));
         JPanel controls = row(8);
         controls.add(reset);
@@ -62,6 +70,8 @@ public class SettingsPanel extends PageLayout {
         });
         accent.addActionListener(e -> updatePreview());
         load(persistence.Repositories.settings().get());
+        settingsFooter.setVisible(owner);
+        ((CardLayout) sections.getLayout()).show(sections, active);
         navigation();
         if (persistence.Repositories.settings().loadError() != null) {
             status.setForeground(UIStyle.WARNING);
@@ -69,17 +79,44 @@ public class SettingsPanel extends PageLayout {
         }
     }
 
+    @Override
+    public void doLayout() {
+        super.doLayout();
+        int available = pageScroll.getViewport().getExtentSize().height;
+        if (available > 0) {
+            int height = Math.max(300,
+                    available - (settingsFooter.isVisible() ? settingsFooter.getPreferredSize().height + 20 : 0));
+            Dimension desired = new Dimension(1, height);
+            if (!desired.equals(sections.getPreferredSize())) {
+                sections.setPreferredSize(desired);
+                body.revalidate();
+            }
+        }
+    }
+
     private void navigation() {
         nav.removeAll();
-        String[] names = { "Appearance", "Store & receipt", "Checkout", "Data & backup" };
-        AppIcon.Name[] icons = { AppIcon.Name.SETTINGS, AppIcon.Name.STORE, AppIcon.Name.CARD, AppIcon.Name.DOWNLOAD };
+        String[] names = security.LocalAuth.allowed(security.LocalAuth.Permission.SETTINGS)
+                ? new String[] { "Appearance", "Store & receipt", "Receipt printer", "Checkout", "Accounts & access",
+                        "Data & backup" }
+                : new String[] { "Receipt printer" };
         for (int i = 0; i < names.length; i++) {
             String name = names[i];
-            JButton b = button(name, icons[i], active.equals(name));
+            AppIcon.Name icon = switch (name) {
+            case "Store & receipt" -> AppIcon.Name.STORE;
+            case "Receipt printer" -> AppIcon.Name.PRINT;
+            case "Checkout" -> AppIcon.Name.CARD;
+            case "Accounts & access" -> AppIcon.Name.SHIELD;
+            case "Data & backup" -> AppIcon.Name.DOWNLOAD;
+            default -> AppIcon.Name.SETTINGS;
+            };
+            JButton b = button(name, icon, active.equals(name));
             b.setMaximumSize(new Dimension(Integer.MAX_VALUE, 46));
             b.setAlignmentX(LEFT_ALIGNMENT);
             b.addActionListener(e -> {
                 active = name;
+                settingsFooter.setVisible(!name.equals("Receipt printer") && !name.equals("Data & backup")
+                        && !name.equals("Accounts & access"));
                 ((CardLayout) sections.getLayout()).show(sections, name);
                 navigation();
             });
@@ -153,7 +190,8 @@ public class SettingsPanel extends PageLayout {
         addField(fields, formField("Address", new JScrollPane(address)));
         addField(fields, formField("Phone", phone));
         addField(fields, formField("Receipt message", new JScrollPane(footer)));
-        addField(fields, formField("Receipt paper width (mm)", receiptWidth));
+        addField(fields,
+                label("Thermal printer and paper options: Receipt printer.", UIStyle.SMALL, UIStyle.TEXT_SECONDARY));
         card.add(scroll(fields), BorderLayout.CENTER);
         return card;
     }
@@ -185,7 +223,7 @@ public class SettingsPanel extends PageLayout {
         tax.setSelected(s.taxEnabled());
         rate.setText(s.taxRate().stripTrailingZeros().toPlainString());
         gcash.setSelected(s.gcashEnabled());
-        receiptWidth.setSelectedItem(s.receiptWidth());
+
         updatePreview();
     }
 
@@ -201,7 +239,7 @@ public class SettingsPanel extends PageLayout {
             next = new PosSettings.Values(store.getText().trim(), address.getText().trim(), phone.getText().trim(),
                     footer.getText().trim(), (String) accent.getSelectedItem(), compact.isSelected(), list.isSelected(),
                     tax.isSelected(), new BigDecimal(rate.getText().trim()), gcash.isSelected(),
-                    (Integer) receiptWidth.getSelectedItem());
+                    persistence.Repositories.settings().get().receiptWidth());
         } catch (IllegalArgumentException ex) {
             status.setForeground(UIStyle.DANGER);
             status.setText("Check the store name and tax rate (0–100).");

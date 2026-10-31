@@ -37,6 +37,12 @@ public final class WorkspacePanel extends JPanel {
     private final JLabel topProfile = label("", UIStyle.SMALL, UIStyle.TEXT_PRIMARY);
     private final JLabel topAvatar = new JLabel();
     private final PropertyChangeListener dataListener = e -> {
+        if (e.getPropertyName().equals("open-stock-alert")
+                && e.getNewValue() instanceof application.StockAlerts.Alert alert) {
+            showPage("Inventory");
+            ((BusinessPages.Inventory) pages.get("Inventory")).focusProduct(alert.branchId(), alert.itemId());
+            return;
+        }
         String destination = switch (e.getPropertyName()) {
         case "navigate-pos" -> "Point of sale";
         case "navigate-reports" -> "Reports";
@@ -67,16 +73,21 @@ public final class WorkspacePanel extends JPanel {
 
     public WorkspacePanel(Runnable onExit) {
         super(new BorderLayout());
+        security.LocalAuth.current();
         exitAction = onExit;
         UIStyle.installDefaults();
         setBackground(UIStyle.BACKGROUND);
-        pages.put("Overview", new AnalyticsDashboard());
+        if (security.LocalAuth.allowed(security.LocalAuth.Permission.REPORTS))
+            pages.put("Overview", new AnalyticsDashboard());
         pages.put("Point of sale", new LaundryPOS());
         pages.put("Catalog", new CatalogPage());
         pages.put("Inventory", new BusinessPages.Inventory());
-        pages.put("Operations", new ui.panels.OperationsPage());
-        pages.put("Reports", new BusinessPages.Reports());
-        pages.put("Team", new BusinessPages.Team());
+        if (security.LocalAuth.allowed(security.LocalAuth.Permission.OPERATIONS))
+            pages.put("Operations", new ui.panels.OperationsPage());
+        if (security.LocalAuth.allowed(security.LocalAuth.Permission.REPORTS))
+            pages.put("Reports", new BusinessPages.Reports());
+        if (security.LocalAuth.allowed(security.LocalAuth.Permission.REPORTS))
+            pages.put("Team", new BusinessPages.Team());
         pages.put("Settings", new SettingsPanel());
         for (var page : pages.entrySet())
             content.add(page.getValue(), page.getKey());
@@ -88,7 +99,7 @@ public final class WorkspacePanel extends JPanel {
         main.add(content, BorderLayout.CENTER);
         add(main, BorderLayout.CENTER);
         add(sidebar, BorderLayout.WEST);
-        showPage("Overview");
+        showPage(pages.containsKey("Overview") ? "Overview" : "Point of sale");
         updateProfile();
     }
 
@@ -187,11 +198,18 @@ public final class WorkspacePanel extends JPanel {
         JPanel nav = new JPanel(new GridLayout(0, 1, 0, 6));
         nav.setOpaque(false);
         String[] names = pages.keySet().toArray(String[]::new);
-        AppIcon.Name[] icons = { AppIcon.Name.DASHBOARD, AppIcon.Name.POS, AppIcon.Name.BOX, AppIcon.Name.LIST,
-                AppIcon.Name.REFRESH, AppIcon.Name.CHART, AppIcon.Name.USERS, AppIcon.Name.SETTINGS };
         for (int i = 0; i < names.length; i++) {
             String name = names[i];
-            AppIcon.Name icon = icons[i];
+            AppIcon.Name icon = switch (name) {
+            case "Overview" -> AppIcon.Name.DASHBOARD;
+            case "Point of sale" -> AppIcon.Name.POS;
+            case "Catalog" -> AppIcon.Name.BOX;
+            case "Inventory" -> AppIcon.Name.LIST;
+            case "Operations" -> AppIcon.Name.REFRESH;
+            case "Reports" -> AppIcon.Name.CHART;
+            case "Team" -> AppIcon.Name.USERS;
+            default -> AppIcon.Name.SETTINGS;
+            };
             SidebarButton b = new SidebarButton(name,
                     (g, x, y, size, color) -> AppIcon.draw(icon, g, x, y, size, color));
             b.setPreferredSize(new Dimension(224, 48));
@@ -211,11 +229,12 @@ public final class WorkspacePanel extends JPanel {
         navigationScroll.getVerticalScrollBar().setOpaque(false);
         navHolder.add(navigationScroll, BorderLayout.CENTER);
         sidebar.add(navHolder, BorderLayout.CENTER);
-        SidebarButton exit = new SidebarButton("Exit workspace",
+        SidebarButton exit = new SidebarButton("Sign out",
                 (g, x, y, size, color) -> AppIcon.draw(AppIcon.Name.LOGOUT, g, x, y, size, color));
         exit.addActionListener(e -> {
-            if (JOptionPane.showConfirmDialog(this, "Exit this workspace? An unfinished cart will be discarded.",
-                    "Exit workspace", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
+            if (JOptionPane.showConfirmDialog(this, "Sign out? An unfinished cart will be discarded.", "Sign out",
+                    JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
+                security.LocalAuth.signOut();
                 if (exitAction != null) {
                     exitAction.run();
                     return;
@@ -266,7 +285,7 @@ public final class WorkspacePanel extends JPanel {
         profileButton.setText(compact ? ""
                 : "<html><b>" + html(shortName(person.name(), 23)) + "</b><br><font color='#B7C8D9'>"
                         + html(person.role()) + "</font></html>");
-        profileButton.setToolTipText(person.name() + " · " + person.role() + " · Switch or edit profile");
+        profileButton.setToolTipText(person.name() + " · " + person.role() + " · Your account");
         profileButton.getAccessibleContext().setAccessibleName("Workspace profile: " + person.name());
         topAvatar.setIcon(new Avatar(person, 30));
         topProfile.setText(shortName(person.name(), 24));

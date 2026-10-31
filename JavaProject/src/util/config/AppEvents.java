@@ -16,7 +16,11 @@ public final class AppEvents {
     }
 
     public static void fire(String topic) {
-        Runnable publish = () -> EVENTS.firePropertyChange(topic, null, Boolean.TRUE);
+        fire(topic, Boolean.TRUE);
+    }
+
+    public static void fire(String topic, Object value) {
+        Runnable publish = () -> EVENTS.firePropertyChange(topic, null, value);
         if (SwingUtilities.isEventDispatchThread())
             publish.run();
         else

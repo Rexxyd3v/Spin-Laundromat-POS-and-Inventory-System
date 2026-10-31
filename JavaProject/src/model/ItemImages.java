@@ -15,6 +15,7 @@ import util.config.AtomicProperties;
 public final class ItemImages {
     public static String importPhoto(Path source) throws IOException {
         synchronized (persistence.LocalTransactions.LOCK) {
+            security.LocalAuth.current();
             validate(source);
             String format;
             try (ImageInputStream stream = ImageIO.createImageInputStream(source.toFile())) {

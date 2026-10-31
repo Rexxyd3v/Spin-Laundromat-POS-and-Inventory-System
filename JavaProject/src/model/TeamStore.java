@@ -35,6 +35,20 @@ public final class TeamStore implements persistence.RepositoryProvider.Team {
                         p.getProperty(k + "contact", ""), p.getProperty(k + "role"),
                         Boolean.parseBoolean(p.getProperty(k + "active", "true")), p.getProperty(k + "image", "")));
             }
+            for (var a : security.LocalAuth.profiles()) {
+                int index = -1;
+                for (int j = 0; j < result.size(); j++)
+                    if (result.get(j).id().equals(a.profileId()))
+                        index = j;
+                Member before = index < 0 ? new Member(a.profileId(), a.name(), "", a.role(), a.active(), "")
+                        : result.get(index);
+                Member linked = new Member(before.id(), before.name(), before.contact(), a.role(), a.active(),
+                        before.image());
+                if (index < 0)
+                    result.add(linked);
+                else
+                    result.set(index, linked);
+            }
             return java.util.List.copyOf(result);
         } catch (RuntimeException ex) {
             throw new IOException("Staff profiles could not be loaded.", ex);
@@ -43,6 +57,29 @@ public final class TeamStore implements persistence.RepositoryProvider.Team {
 
     public void save(java.util.List<Member> members) throws IOException {
         synchronized (persistence.LocalTransactions.LOCK) {
+            var actor = security.LocalAuth.current();
+            if (members.stream().map(Member::id).distinct().count() != members.size())
+                throw new IOException("Team profile IDs must be unique.");
+            for (var a : security.LocalAuth.profiles()) {
+                Member linked = members.stream().filter(m -> m.id().equals(a.profileId())).findFirst()
+                        .orElseThrow(() -> new IOException("Manage linked accounts in Accounts & access."));
+                if (!linked.role().equals(a.role()) || linked.active() != a.active())
+                    throw new IOException("Change account roles and status in Accounts & access.");
+            }
+            if (!security.LocalAuth.allowed(security.LocalAuth.Permission.TEAM_EDIT)) {
+                var existing = read();
+                if (existing.size() != members.size())
+                    throw new SecurityException("You can edit only your own profile.");
+                for (Member previous : existing) {
+                    Member next = members.stream().filter(m -> m.id().equals(previous.id())).findFirst()
+                            .orElseThrow(() -> new SecurityException("You can edit only your own profile."));
+                    if (!previous.id().equals(actor.profileId()) && !previous.equals(next))
+                        throw new SecurityException("You can edit only your own profile.");
+                    if (previous.id().equals(actor.profileId())
+                            && (!next.role().equals(previous.role()) || next.active() != previous.active()))
+                        throw new SecurityException("Your role and status are managed by the Owner.");
+                }
+            }
             Properties p = new Properties();
             p.setProperty("count", Integer.toString(members.size()));
             for (int i = 0; i < members.size(); i++) {

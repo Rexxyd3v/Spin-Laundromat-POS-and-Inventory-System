@@ -1,8 +1,11 @@
 # Enhancement roadmap before Supabase migration
 
-Reviewed: 31 October 2026. Status: cleanup plus selected local features implemented; no cloud project,
-production import, new authentication system, or online checkout has been enabled.
-The current application remains a local Java Swing POS.
+Updated: 1 November 2026. Status: cleanup, selected local features and local account
+authentication implemented; no cloud project, production import or online checkout
+has been enabled.
+The current application remains a local Java Swing POS. Local authentication now
+uses salted password hashes, first-login password changes, persistent attempt limits,
+Owner account administration and memory-only sessions; see README.md.
 
 ## Applied selections 1 and 5
 
@@ -13,7 +16,7 @@ below threshold, branch-aware counts and transfer states, machine maintenance an
 conflict-checked scheduling, custom-date financial analytics, and 58/80 mm receipt
 printing/reprints. See README.md for the complete operating flow and limits.
 
-These are local features. Auth/RLS, cloud transactions and synchronized branch POS
+These are local features. Supabase Auth/RLS, cloud transactions and synchronized branch POS
 remain the staging milestone; customer/production/payment-state expansion remains
 on this roadmap. Existing data is retained and no live migration ran.
 
@@ -21,7 +24,7 @@ on this roadmap. Existing data is retained and no live migration ran.
 
 The active path is `Main → MasterKey → LoginWindow → WelcomePanel → WorkspacePanel`.
 The workspace contains Overview, Point of sale, Catalog, Inventory, Reports, Team,
-Settings and Operations. The same window handles the two preview sign-in screens and logout.
+Settings and Operations. The same window handles the master-key and verified account sign-in screens and logout.
 
 | Area | Verified current behavior | Remaining gap |
 | --- | --- | --- |
@@ -30,7 +33,7 @@ Settings and Operations. The same window handles the two preview sign-in screens
 | Inventory | Physical count, minimum threshold, stock derived from saved sales | Transfer ledger and branch counts now work; no general receiving/supplier/cost ledger |
 | Reports | Saved orders, filters, CSV export, receipt reprint | No shift settlement, refund adjustments, production workload, or branch filters |
 | Overview | 7/30/90/custom date ranges, tax/base/cash metrics, payment mix, top sellers, operations summary | Revenue includes recorded tax; no profit calculation or unpaid-order metrics |
-| Team | Saved names, role labels, active profiles and photos | Profile selection is display identity, not verified sign-in or access control |
+| Team | Authenticated Owner/Manager/Cashier accounts, role checks, password resets, profiles and photos | Online identity, branch memberships and production-operator role remain future work |
 | Settings | Saved branding, tax, receipt text, view/density and accent | Verified backup/isolated restore now works; no branch configuration or general settings audit |
 | Storage | Atomic local writes and complete receipt/price snapshots | Local scope only; no coordination between PCs/branches |
 

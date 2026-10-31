@@ -32,12 +32,13 @@ public class EnhancementTest {
             check(ItemImages.read(ItemImages.resolve(catalog.items().get(0).image())) != null,
                     "Managed photo loads after restart");
             check(PosSettings.get().storeName().equals("Photo test store"), "Branding persists after restart");
-            check(new TeamStore().read().size() == 1, "Staff profile persists after restart");
+            check(new TeamStore().read().size() == 2, "Staff profile persists after restart");
             System.out.println("RELOAD OK");
             return;
         }
         Path data = Files.createTempDirectory("laundry-enhancement-test-");
         System.setProperty("laundry.dataDir", data.toString());
+        AuthTestSupport.loginOwner();
         System.setProperty("laundry.legacyServices", data.resolve("not-present.properties").toString());
         Path source = data.resolve("chosen-photo.png");
         BufferedImage fixture = new BufferedImage(90, 60, BufferedImage.TYPE_INT_RGB);
@@ -114,7 +115,7 @@ public class EnhancementTest {
         stock.setCount(product.id(), new BigDecimal("5"), new BigDecimal("2"), "Recount");
         check(new StockStore().available(product.id(), SavedSales.read().sales()).compareTo(new BigDecimal("5")) == 0,
                 "Physical count accounts for previous sales");
-        new TeamStore().save(List.of(new TeamStore.Member(UUID.randomUUID().toString(), "Test team member",
+        new TeamStore().save(List.of(model.ActiveProfile.current(),new TeamStore.Member(UUID.randomUUID().toString(), "Test team member",
                 "09000000000", "Cashier", true)));
         PosSettings.save(new PosSettings.Values("Photo test store", "Address", "Phone", "Thank you", "Violet", false,
                 false, true, new BigDecimal("12"), false));

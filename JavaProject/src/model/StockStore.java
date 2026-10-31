@@ -73,6 +73,7 @@ public final class StockStore implements persistence.RepositoryProvider.Inventor
 
     public void setCount(String id, BigDecimal count, BigDecimal minimum, String note) throws IOException {
         synchronized (persistence.LocalTransactions.LOCK) {
+            security.LocalAuth.require(security.LocalAuth.Permission.STOCK_EDIT);
             refreshDeltas();
             if (count == null || minimum == null || count.signum() < 0 || minimum.signum() < 0)
                 throw new IllegalArgumentException("Stock quantities cannot be negative.");

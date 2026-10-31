@@ -23,6 +23,10 @@ public final class OrderStore {
 
     public static Path save(Order order) throws IOException {
         synchronized (persistence.LocalTransactions.LOCK) {
+            security.LocalAuth.require(security.LocalAuth.Permission.CHECKOUT);
+            var account = security.LocalAuth.current();
+            var operator = ActiveProfile.current();
+            if (!operator.id().equals(account.profileId())) throw new SecurityException("Please sign in again.");
             UUID.fromString(order.id());
             Path file = AtomicProperties.dataPath("orders").resolve(order.id() + ".properties");
             if (java.nio.file.Files.exists(file))
@@ -36,8 +40,10 @@ public final class OrderStore {
             p.setProperty("id", order.id());
             p.setProperty("created", OffsetDateTime.now().toString());
             p.setProperty("customer", order.customer());
-            p.setProperty("cashier.id", ActiveProfile.current().id());
-            p.setProperty("cashier.name", ActiveProfile.current().name());
+            p.setProperty("cashier.id", operator.id());
+            p.setProperty("cashier.account.id", account.id());
+            p.setProperty("cashier.username", account.username());
+            p.setProperty("cashier.name", operator.name());
             p.setProperty("phone", order.phone());
             p.setProperty("notes", order.notes());
             p.setProperty("payment", order.payment());

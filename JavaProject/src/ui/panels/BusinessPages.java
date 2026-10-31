@@ -234,11 +234,21 @@ public final class BusinessPages {
         private final JComboBox<OperationsStore.Branch> branches = combo(
                 new OperationsStore.Branch[] { new OperationsStore.Branch("main", "Main branch") });
         private boolean loadingBranches;
+        private String requestedBranch, requestedItem;
+
+        public void focusProduct(String branch, String item) {
+            requestedBranch = branch;
+            requestedItem = item;
+            search.setText("");
+            refresh();
+        }
+
         private List<SavedSales.Sale> sales = List.of();
 
         public Inventory() {
             super("STOCK CONTROL", "Inventory", "Keep the essentials ready for your next customer.");
             JButton count = button("Update stock", AppIcon.Name.EDIT, true);
+            count.setEnabled(security.LocalAuth.allowed(security.LocalAuth.Permission.STOCK_EDIT));
             actions.add(count);
             JPanel top = new JPanel(new BorderLayout(0, 20));
             top.setOpaque(false);
@@ -268,8 +278,8 @@ public final class BusinessPages {
         }
 
         public void refresh() {
-            String selected = branches.getSelectedItem() instanceof OperationsStore.Branch branch ? branch.id()
-                    : "main";
+            String selected = requestedBranch != null ? requestedBranch
+                    : branches.getSelectedItem() instanceof OperationsStore.Branch branch ? branch.id() : "main";
             long request = ++generation;
             new SwingWorker<InventoryData, Void>() {
                 protected InventoryData doInBackground() throws Exception {
@@ -308,7 +318,17 @@ public final class BusinessPages {
                             status.setText("Unreadable orders prevent reliable stock balances. Review the data audit.");
                             return;
                         }
+                        requestedBranch = null;
                         filter();
+                        if (requestedItem != null) {
+                            for (int row = 0; row < filtered.size(); row++)
+                                if (filtered.get(row).id().equals(requestedItem)) {
+                                    table.setRowSelectionInterval(row, row);
+                                    table.scrollRectToVisible(table.getCellRect(row, 0, true));
+                                    break;
+                                }
+                            requestedItem = null;
+                        }
                     } catch (Exception ex) {
                         stock = null;
                         model.setRowCount(0);
@@ -421,6 +441,8 @@ public final class BusinessPages {
             JButton add = button("Add member", AppIcon.Name.PLUS, true),
                     edit = button("Edit profile", AppIcon.Name.EDIT, false);
             actions.add(edit);
+            add.setEnabled(security.LocalAuth.allowed(security.LocalAuth.Permission.TEAM_EDIT));
+            edit.setEnabled(security.LocalAuth.allowed(security.LocalAuth.Permission.TEAM_EDIT));
             actions.add(add);
             JPanel top = new JPanel(new BorderLayout(0, 20));
             top.setOpaque(false);

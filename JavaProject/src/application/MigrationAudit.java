@@ -16,6 +16,7 @@ public final class MigrationAudit {
     }
 
     public static Report scan() throws IOException {
+        security.LocalAuth.require(security.LocalAuth.Permission.BACKUP);
         synchronized (LocalTransactions.LOCK) {
             List<String> findings = new ArrayList<>();
             List<CatalogItem> items = List.of();
@@ -70,7 +71,7 @@ public final class MigrationAudit {
                     "REVIEW: Catalog IDs are preserved, including legacy IDs. Scope them to the source branch before a multi-branch import.");
             findings.add(
                     "REVIEW: Legacy CSVs remain source documents; incomplete transactions are not converted into invented orders.");
-            findings.add("INFO: Profiles and role labels are not authenticated user accounts.");
+            findings.add("INFO: Local accounts are authenticated. Profile-only legacy members do not gain sign-in access. Migrate identity and branch permissions explicitly; do not import password hashes into Supabase Auth.");
             String text = "LOCAL DATA AUDIT\nActive folder: " + DataLocation.root() + "\nCatalog items: " + items.size()
                     + "\nReadable orders: " + orders.sales().size() + "\nUnreadable orders: " + orders.unreadable()
                     + "\nImage files: " + images + "\n\n" + String.join("\n", findings)
@@ -81,6 +82,7 @@ public final class MigrationAudit {
     }
 
     public static Map<String, byte[]> exports() throws IOException {
+        security.LocalAuth.require(security.LocalAuth.Permission.BACKUP);
         Map<String, byte[]> files = new LinkedHashMap<>();
         var items = Repositories.catalog().items();
         var sales = Repositories.orders().read();

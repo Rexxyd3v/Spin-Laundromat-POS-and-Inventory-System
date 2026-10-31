@@ -43,6 +43,7 @@ public class RenderPreview {
                 .save(List.of(admin, new TeamStore.Member("preview-cashier", "Sample Cashier", "", "Cashier", true)));
         ActiveProfile.select(admin.id());
         CatalogStore catalog = new CatalogStore();
+        application.CatalogSampleImages.applyMissing(catalog);
         PosSettings.Values settings = PosSettings.get();
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Manila"));
         for (int day = 0; day < 21; day++) {
@@ -111,6 +112,7 @@ public class RenderPreview {
         Path output = Path.of(args[0]);
         Files.createDirectories(output);
         System.setProperty("laundry.dataDir", Files.createTempDirectory("laundry-preview-").toString());
+        AuthTestSupport.loginOwner("preview-owner");
         seed();
         CatalogItem stockItem = new CatalogStore().items().stream().filter(CatalogItem::product).findFirst()
                 .orElseThrow();
@@ -205,12 +207,21 @@ public class RenderPreview {
         SwingUtilities.invokeAndWait(() -> {
             try {
                 var notification = (util.components.StockNotificationButton) named(workspace, "stockNotifications");
-                save(notification.notificationContent(), 480, 350, output.resolve("stock-notifications.png"));
+                save(notification.notificationContent(), 480, 640, output.resolve("stock-notifications.png"));
                 JButton dataButton = findButton(workspace.page("Settings"), "Data & backup");
                 if (dataButton != null)
                     dataButton.doClick();
                 workspace.showPage("Settings");
                 save(workspace, 1440, 900, output.resolve("data-tools.png"));
+                JButton accountsButton = findButton(workspace.page("Settings"), "Accounts & access");
+                if (accountsButton != null) accountsButton.doClick();
+                save(workspace, 1440, 900, output.resolve("local-accounts.png"));
+                save(workspace, 1024, 768, output.resolve("local-accounts-laptop.png"));
+                JButton printerButton = findButton(workspace.page("Settings"), "Receipt printer");
+                if (printerButton != null)
+                    printerButton.doClick();
+                save(workspace, 1440, 900, output.resolve("thermal-printer-settings.png"));
+                save(workspace, 1024, 768, output.resolve("thermal-printer-settings-laptop.png"));
                 save(new util.components.ReceiptView(SavedSales.read().sales().get(0).receipt(), true), 500, 650,
                         output.resolve("receipt-options.png"));
                 save(new WelcomePanel(false, () -> {

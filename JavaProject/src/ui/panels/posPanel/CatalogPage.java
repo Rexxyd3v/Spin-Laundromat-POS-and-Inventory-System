@@ -30,6 +30,8 @@ public class CatalogPage extends PageLayout {
         super("YOUR COLLECTION", "Services & products", "Your prices, your categories, your images.");
         JButton add = button("Add item", AppIcon.Name.PLUS, true), edit = button("Edit item", AppIcon.Name.EDIT, false),
                 remove = iconButton("Remove selected item", AppIcon.Name.TRASH);
+        boolean canEdit = security.LocalAuth.allowed(security.LocalAuth.Permission.CATALOG_EDIT);
+        add.setEnabled(canEdit); edit.setEnabled(canEdit); remove.setEnabled(canEdit);
         actions.add(edit);
         actions.add(remove);
         actions.add(add);

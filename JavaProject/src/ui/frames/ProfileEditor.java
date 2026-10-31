@@ -19,6 +19,19 @@ public final class ProfileEditor extends JDialog {
         JCheckBox active = new JCheckBox("Active team member", member == null || member.active());
         active.setOpaque(false);
         String id = member == null ? UUID.randomUUID().toString() : member.id();
+        boolean linked = false;
+        try {
+            linked = member != null
+                    && security.LocalAuth.profiles().stream().anyMatch(a -> a.profileId().equals(member.id()));
+        } catch (java.io.IOException ex) {
+            throw new IllegalStateException(ex);
+        }
+        boolean ownerAccess = security.LocalAuth.allowed(security.LocalAuth.Permission.TEAM_EDIT);
+        if (!ownerAccess && (member == null || !member.id().equals(security.LocalAuth.current().profileId())))
+            throw new SecurityException("You can edit only your own profile.");
+        role.setEnabled(ownerAccess && !linked);
+        active.setEnabled(ownerAccess && !linked);
+
         String[] image = { member == null ? "" : member.image() };
         Path[] selected = { null };
         if (member != null) {

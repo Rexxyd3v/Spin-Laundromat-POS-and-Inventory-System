@@ -29,6 +29,7 @@ public final class CatalogStore implements persistence.RepositoryProvider.Catalo
 
     public void save(List<CatalogItem> replacement) throws IOException {
         synchronized (persistence.LocalTransactions.LOCK) {
+            security.LocalAuth.require(security.LocalAuth.Permission.CATALOG_EDIT);
             Properties p = new Properties();
             p.setProperty("count", Integer.toString(replacement.size()));
             Set<String> ids = new HashSet<>();

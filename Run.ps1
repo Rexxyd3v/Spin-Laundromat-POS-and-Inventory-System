@@ -1,6 +1,8 @@
 param(
     [switch]$Test,
-    [switch]$Preview
+    [switch]$Preview,
+    [switch]$SampleImages,
+    [switch]$SampleAccounts
 )
 
 $ErrorActionPreference = 'Stop'
@@ -56,7 +58,7 @@ if (Test-Path -LiteralPath $taskResources) {
 Push-Location -LiteralPath $taskProject
 try {
     if ($Test) {
-        foreach ($taskCheck in @('ModernPosTest','EnhancementTest','UxFlowTest','LoginMotionTest','StorageOperationsTest','FeatureUiTest')) {
+        foreach ($taskCheck in @('ModernPosTest','EnhancementTest','UxFlowTest','LoginMotionTest','StorageOperationsTest','FeatureUiTest','PrinterNotificationTest','LocalAuthTest','LocalAuthUiTest','LocalAuthSampleTest')) {
             & $taskJava '-Djava.awt.headless=true' "-Djava.io.tmpdir=$taskTemporary" -cp $taskBuild $taskCheck
             if ($LASTEXITCODE -ne 0) { throw "Verification failed: $taskCheck" }
         }
@@ -65,11 +67,20 @@ try {
         & $taskJava '-Djava.awt.headless=false' "-Djava.io.tmpdir=$taskTemporary" -cp $taskBuild ResponsiveDashboardTest
         if ($LASTEXITCODE -ne 0) { throw 'Verification failed: ResponsiveDashboardTest' }
     }
+    if ($SampleAccounts) {
+        & $taskJava '-Djava.awt.headless=true' -cp $taskBuild security.LocalAuth --samples
+        if ($LASTEXITCODE -ne 0) { throw 'Account setup failed. Existing accounts were not replaced.' }
+    }
+    if ($SampleImages) {
+        $sampleBackup = Join-Path $taskRoot ('.cleanup-backups/catalog-before-sample-images-' + [Guid]::NewGuid().ToString('N') + '.properties')
+        & $taskJava '-Djava.awt.headless=true' -cp $taskBuild application.CatalogSampleImages $sampleBackup
+        if ($LASTEXITCODE -ne 0) { throw 'Sample image installation failed. Review the catalog backup.' }
+    }
     if ($Preview) {
         & $taskJava "-Djava.io.tmpdir=$taskTemporary" -cp $taskBuild RenderPreview (Join-Path $taskRoot 'preview')
         if ($LASTEXITCODE -ne 0) { throw 'Preview generation failed.' }
     }
-    if (-not $Test -and -not $Preview) {
+    if (-not $Test -and -not $Preview -and -not $SampleImages -and -not $SampleAccounts) {
         & $taskJava -cp $taskBuild Main
         if ($LASTEXITCODE -ne 0) { throw 'The application could not start.' }
     }

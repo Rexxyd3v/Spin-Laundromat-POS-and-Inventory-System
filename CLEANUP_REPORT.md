@@ -97,7 +97,10 @@ staging import and rollback are verified. No Supabase connection or migration ra
 The legacy key file was already tracked by Git. Adding an ignore pattern does not
 remove an already tracked file or its history. Credential handling and removal from
 future source-control tracking must be addressed when real Auth is introduced;
-the current preview screens do not verify this key.
+the preview screens at the time of cleanup did not verify this key. As of
+1 November 2026, local authentication uses a separate ignored
+`authentication.properties` file with salted hashes; the legacy key is still unused.
+Historical tracked credential files require separate source-control/history handling.
 
 Tests and preview generators remain because they verify pricing, persistence,
 images, scrolling, profiles, transitions and responsive add/edit dialogs. Current

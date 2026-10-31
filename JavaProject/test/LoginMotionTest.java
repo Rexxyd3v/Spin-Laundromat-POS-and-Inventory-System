@@ -103,6 +103,7 @@ public class LoginMotionTest {
 
     public static void main(String[] args) throws Exception {
         System.setProperty("laundry.dataDir", Files.createTempDirectory("login-motion-test-").toString());
+        AuthTestSupport.loginOwner();
         UIStyle.installDefaults();
         check(BrandMark.isArtworkAvailable(), "Selected mascot is packaged with the app");
         check(BrandMark.hasTransparentArtwork(), "Logo alpha is preserved");
