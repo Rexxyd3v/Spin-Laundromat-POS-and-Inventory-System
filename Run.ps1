@@ -1,11 +1,15 @@
 param(
     [switch]$Test,
     [switch]$Preview,
+    [switch]$Docs,
+    [switch]$PortfolioVideo,
+    [string]$FfmpegPath = '',
     [switch]$SampleImages,
     [switch]$SampleAccounts
 )
 
 $ErrorActionPreference = 'Stop'
+if ($PortfolioVideo) { $Docs = $true }
 $taskRoot = $PSScriptRoot
 $taskProject = Join-Path $taskRoot 'JavaProject'
 $taskBuild = Join-Path $taskRoot '.build/classes'
@@ -44,7 +48,7 @@ if (Test-Path -LiteralPath $taskResolvedBuild) {
 }
 New-Item -ItemType Directory -Force -Path $taskBuild,$taskTemporary | Out-Null
 $taskSourceFolders = @((Join-Path $taskProject 'src'))
-if ($Test -or $Preview) { $taskSourceFolders += Join-Path $taskProject 'test' }
+if ($Test -or $Preview -or $Docs) { $taskSourceFolders += Join-Path $taskProject 'test' }
 $taskSources = @(Get-ChildItem -LiteralPath $taskSourceFolders -Recurse -Filter '*.java' |
     ForEach-Object { $_.FullName })
 & $taskCompiler --release 21 -encoding UTF-8 -d $taskBuild $taskSources
@@ -76,11 +80,26 @@ try {
         & $taskJava '-Djava.awt.headless=true' -cp $taskBuild application.CatalogSampleImages $sampleBackup
         if ($LASTEXITCODE -ne 0) { throw 'Sample image installation failed. Review the catalog backup.' }
     }
-    if ($Preview) {
+    if ($Preview -or $Docs) {
         & $taskJava "-Djava.io.tmpdir=$taskTemporary" -cp $taskBuild RenderPreview (Join-Path $taskRoot 'preview')
         if ($LASTEXITCODE -ne 0) { throw 'Preview generation failed.' }
     }
-    if (-not $Test -and -not $Preview -and -not $SampleImages -and -not $SampleAccounts) {
+    if ($Docs) {
+        $taskDocImages = Join-Path $taskRoot 'docs/images'
+        if ($PortfolioVideo) {
+            $taskPortfolioFrames = Join-Path $taskTemporary ('portfolio-frames-' + [Guid]::NewGuid().ToString('N'))
+            & $taskJava '-Djava.awt.headless=true' "-Djava.io.tmpdir=$taskTemporary" -cp $taskBuild LoginAnimationPreview $taskDocImages $taskPortfolioFrames (Join-Path $taskRoot 'preview') (Join-Path $taskRoot 'docs/videos')
+        } else {
+            & $taskJava '-Djava.awt.headless=true' "-Djava.io.tmpdir=$taskTemporary" -cp $taskBuild LoginAnimationPreview $taskDocImages
+        }
+        if ($LASTEXITCODE -ne 0) { throw 'Login GIF generation failed.' }
+        & $taskJava '-Djava.awt.headless=true' -cp $taskBuild DocumentationMedia (Join-Path $taskRoot 'preview') $taskDocImages
+        if ($LASTEXITCODE -ne 0) { throw 'Documentation media generation failed.' }
+        if ($PortfolioVideo) {
+            & (Join-Path $taskRoot 'scripts/Encode-PortfolioVideo.ps1') -FramesPath $taskPortfolioFrames -OutputPath (Join-Path $taskRoot 'docs/videos/spin-laundromat-preview.mp4') -FfmpegPath $FfmpegPath
+        }
+    }
+    if (-not $Test -and -not $Preview -and -not $Docs -and -not $SampleImages -and -not $SampleAccounts) {
         & $taskJava -cp $taskBuild Main
         if ($LASTEXITCODE -ne 0) { throw 'The application could not start.' }
     }

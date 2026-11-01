@@ -9,6 +9,57 @@ The prioritized feature roadmap and migration readiness criteria are in
 [ENHANCEMENT_PLAN.md](ENHANCEMENT_PLAN.md). The code cleanup inventory and recovery
 instructions are in [CLEANUP_REPORT.md](CLEANUP_REPORT.md).
 
+## System preview
+
+Follow the complete sign-in flow: **enter Master Key → verify access → employee
+sign-in → analytics dashboard and main workspace**. The GIF records the actual
+login controls and authentication with a demo account; passwords stay masked.
+All screenshots and animations use isolated demo data.
+
+![Master Key login through employee sign-in to the main workspace](docs/images/login-animation.gif)
+
+### Portfolio video
+
+A **21-second, 1080p / 30 fps MP4** starts with Master Key entry and employee sign-in, then shows
+the dashboard, POS, product photos, inventory and reports. It uses demo data and
+masked passwords. Click the poster to open or download the video.
+
+[![Play the Spin Laundromat portfolio preview](docs/videos/poster.png)](docs/videos/spin-laundromat-preview.mp4)
+
+[Open / download portfolio video](docs/videos/spin-laundromat-preview.mp4)
+
+## Screenshots
+
+Click a screenshot to view it at full size.
+
+| Analytics dashboard | Point of sale |
+| --- | --- |
+| [![Analytics dashboard with revenue metrics and sales chart](docs/images/overview.png)](docs/images/overview.png) | [![Point of sale with sample product photos and current order](docs/images/pos-desktop.png)](docs/images/pos-desktop.png) |
+| **Services & products** | **Inventory** |
+| [![Services and products catalog with sample images](docs/images/catalog.png)](docs/images/catalog.png) | [![Inventory with branch selection and stock thresholds](docs/images/inventory.png)](docs/images/inventory.png) |
+| **Sales reports** | **Thermal printer settings** |
+| [![Sales reports and saved receipts](docs/images/reports.png)](docs/images/reports.png) | [![Thermal receipt printer configuration and preview](docs/images/thermal-printer-settings.png)](docs/images/thermal-printer-settings.png) |
+
+<details>
+<summary>Workspace tour and more screens</summary>
+
+A separate looping tour shows the dashboard, POS, checkout, inventory, thermal
+printer settings and account management.
+
+![Workspace pages tour](docs/images/system-tour.gif)
+
+| Master Key | Employee sign-in |
+| --- | --- |
+| ![Master Key screen](docs/images/welcome.png) | ![Employee sign-in screen](docs/images/staff-login.png) |
+| **Checkout** | **Product image editor** |
+| ![Order review and payment](docs/images/pos-checkout.png) | ![Product editor with image upload](docs/images/image-editor.png) |
+| **Operations** | **Team** |
+| ![Branch stock transfer operations](docs/images/operations.png) | ![Team profiles](docs/images/team.png) |
+| **Accounts & access** | **Stock notifications** |
+| ![Local account administration](docs/images/local-accounts.png) | ![Low stock notification panel](docs/images/stock-notifications.png) |
+
+</details>
+
 ## Run
 
 Install or select a JDK version 21 or later. From this repository, run:
@@ -210,6 +261,7 @@ Keep the entire data folder together when making a manual backup.
 ```powershell
 .\Run.ps1 -Test
 .\Run.ps1 -Preview
+.\Run.ps1 -Docs
 ```
 
 The login uses the original cartoon mascot with yellow accents confined to the
@@ -232,6 +284,20 @@ Add/edit catalog dialogs also support scrolling and narrow windows: images and
 fields stack, paired fields become single rows, and Save/Cancel stay visible.
 Dialog checks cover actual mouse-wheel movement, reaching the last field, keeping
 draft values while resizing, and validation messages in a small window.
+Use `-Docs` to refresh the README screenshots and both GIFs in `docs/images/`.
+Use `.\Run.ps1 -PortfolioVideo` to also export the portfolio MP4 and poster in
+`docs/videos/`. Video encoding needs FFmpeg with the `libx264` encoder, found on
+PATH, through `FFMPEG_PATH`, or supplied with `-FfmpegPath`. The exporter checks the
+finished MP4 by decoding it. FFmpeg is a media-build dependency; normal app launches
+and GIF/screenshot generation do not need it.
+
+The documentation renderer captures the current Swing UI with temporary demo records, checks the exported
+images and tour GIF, and copies only the selected media into the documentation.
+The system tour uses page snapshots with crossfades. The main login GIF records
+Master Key entry, verified employee sign-in, the moving background and the
+transition into the authenticated dashboard. No real credentials or customer records are included.
+Documentation media is kept in the repository so relative image links work on GitHub.
+
 Preview renders of the actual Swing components are saved under `preview/` and use
 isolated demonstration orders and profiles; they do not add data to your store.
 Build files, previews, and runtime store data are excluded from Git.
